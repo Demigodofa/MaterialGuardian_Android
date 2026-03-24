@@ -64,7 +64,7 @@ class JobRepository(
 }
 
 private fun deleteJobMedia(jobNumber: String) {
-    val root = File(AppContextHolder.appContext.filesDir, "job_media/$jobNumber")
+    val root = File(AppContextHolder.appContext.filesDir, "job_media/${sanitizeJobMediaSegment(jobNumber)}")
     if (root.exists()) {
         root.deleteRecursively()
     }
@@ -72,9 +72,15 @@ private fun deleteJobMedia(jobNumber: String) {
 
 private fun moveJobMedia(oldJobNumber: String, newJobNumber: String) {
     val root = File(AppContextHolder.appContext.filesDir, "job_media")
-    val oldDir = File(root, oldJobNumber)
-    val newDir = File(root, newJobNumber)
+    val oldDir = File(root, sanitizeJobMediaSegment(oldJobNumber))
+    val newDir = File(root, sanitizeJobMediaSegment(newJobNumber))
     if (oldDir.exists()) {
         oldDir.renameTo(newDir)
     }
+}
+
+private fun sanitizeJobMediaSegment(value: String): String {
+    return value.lowercase()
+        .replace(Regex("[^a-z0-9]+"), "_")
+        .trim('_')
 }

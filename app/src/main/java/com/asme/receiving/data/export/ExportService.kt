@@ -1,5 +1,6 @@
 package com.asme.receiving.data.export
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
@@ -23,6 +24,14 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.first
 
+data class ExportResult(
+    val internalPath: String,
+    val downloadsFolder: String,
+    val materialPacketCount: Int,
+    val scanSourceCount: Int,
+    val photoCount: Int
+)
+
 class ExportService(
     private val context: Context = AppContextHolder.appContext,
     private val jobRepository: JobRepository = JobRepository(),
@@ -30,200 +39,258 @@ class ExportService(
 ) {
     private val dateFormatter = SimpleDateFormat("MM/dd/yyyy", Locale.US)
 
-    suspend fun exportJob(jobNumber: String): String {
+    suspend fun exportJob(jobNumber: String): ExportResult {
         PDFBoxResourceLoader.init(context)
         val job = jobRepository.get(jobNumber) ?: throw IllegalStateException("Job not found")
         val materials = materialRepository.streamMaterialsForJob(jobNumber).first()
         val exportRoot = File(context.filesDir, "exports/${sanitize(job.jobNumber)}")
+        if (exportRoot.exists()) {
+            exportRoot.deleteRecursively()
+        }
         exportRoot.mkdirs()
 
-        val receivingDir = File(exportRoot, "receiving_reports").also { it.mkdirs() }
-        val scanDir = File(exportRoot, "mtr_scans").also { it.mkdirs() }
+        val packetDir = File(exportRoot, "material_packets").also { it.mkdirs() }
+        var materialPacketCount = 0
+        var scanSourceCount = 0
+        var photoCount = 0
 
         materials.forEachIndexed { index, material ->
             val suffix = material.description.ifBlank { "material_${index + 1}" }
-            val baseName = truncate(sanitize("${job.jobNumber}_$suffix"), 40)
-            val outputFile = File(receivingDir, "${baseName}_receiving.pdf")
-            generateReceivingReport(job, material, outputFile)
-            exportScans(material, scanDir, baseName)
-            exportPhotos(material, exportRoot, baseName)
+            val baseName = truncate(
+                sanitize("${job.jobNumber}_${index + 1}_$suffix"),
+                60
+            )
+            val outputFile = File(packetDir, "${baseName}_packet.pdf")
+            val packetResult = exportMaterialPacket(job, material, outputFile)
+            if (packetResult.created) {
+                materialPacketCount += 1
+            }
+            scanSourceCount += packetResult.scanSourceCount
+            photoCount += packetResult.photoCount
         }
 
-        writeExportNotice(exportRoot, job)
-        copyToDownloads(exportRoot, job.jobNumber)
-        jobRepository.updateExportStatus(job.jobNumber, exportRoot.absolutePath)
-        return exportRoot.absolutePath
+        writeExportNotice(
+            exportRoot = exportRoot,
+            job = job,
+            materialPacketCount = materialPacketCount,
+            scanSourceCount = scanSourceCount,
+            photoCount = photoCount
+        )
+        val downloadsFolder = copyToDownloads(exportRoot, job.jobNumber)
+        jobRepository.updateExportStatus(job.jobNumber, downloadsFolder)
+        return ExportResult(
+            internalPath = exportRoot.absolutePath,
+            downloadsFolder = downloadsFolder,
+            materialPacketCount = materialPacketCount,
+            scanSourceCount = scanSourceCount,
+            photoCount = photoCount
+        )
     }
 
-    private fun generateReceivingReport(job: JobItem, material: MaterialItem, outputFile: File) {
+    private fun exportMaterialPacket(job: JobItem, material: MaterialItem, outputFile: File): MaterialPacketResult {
+        val scanPaths = decodeStoredScanSourcePaths(material.scanPaths)
+        val photoPaths = decodeStoredPhotoPaths(material.photoPaths)
+        var created = false
+        val retainedScanDocuments = mutableListOf<PDDocument>()
         PDDocument().use { document ->
-            val page = PDPage(PDRectangle.LETTER)
-            document.addPage(page)
-            PDPageContentStream(document, page).use { stream ->
-                val margin = 36f
-                val width = PDRectangle.LETTER.width - margin * 2
-                var y = PDRectangle.LETTER.height - margin
-
-                stream.setFont(PDType1Font.HELVETICA_BOLD, 16f)
-                drawText(stream, margin, y, "RECEIVING INSPECTION REPORT")
-                y -= 20f
-                stream.setFont(PDType1Font.HELVETICA, 11f)
-                drawText(stream, margin, y, "Job#: ${job.jobNumber}")
-                y -= 16f
-
-                y = drawSectionTitle(stream, margin, y, "Material Details")
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("Material Description", material.description, 0.6f),
-                        LabelValue("PO#", material.poNumber, 0.2f),
-                        LabelValue("Vendor", material.vendor, 0.2f)
-                    )
+            try {
+                appendReceivingReport(document, job, material)
+                val includedScans = appendScanPages(document, scanPaths, retainedScanDocuments)
+                val includedPhotos = appendPhotoPages(document, photoPaths)
+                if (document.numberOfPages > 0) {
+                    FileOutputStream(outputFile).use { out -> document.save(out) }
+                    created = true
+                }
+                return MaterialPacketResult(
+                    created = created,
+                    scanSourceCount = includedScans,
+                    photoCount = includedPhotos
                 )
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("Qty", material.quantity, 0.15f),
-                        LabelValue("Product", material.productType, 0.25f),
-                        LabelValue("Specification", material.specificationPrefix.ifBlank { material.specificationNumbers }, 0.2f),
-                        LabelValue("Grade/Type", material.gradeType, 0.2f),
-                        LabelValue("Fitting", listOf(material.fittingStandard, material.fittingSuffix)
-                            .filter { it.isNotBlank() }.joinToString("."), 0.2f)
-                    )
-                )
-
-                y = drawSectionTitle(stream, margin, y, "Dimensions")
-                y = drawToggleRow(
-                    stream,
-                    margin,
-                    y,
-                    "Unit",
-                    listOf(
-                        Toggle("Imperial", material.dimensionUnit == "imperial"),
-                        Toggle("Metric", material.dimensionUnit == "metric")
-                    )
-                )
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("TH 1", material.thickness1, 0.25f),
-                        LabelValue("TH 2", material.thickness2, 0.25f),
-                        LabelValue("TH 3", material.thickness3, 0.25f),
-                        LabelValue("TH 4", material.thickness4, 0.25f)
-                    )
-                )
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("Width", material.width, 0.25f),
-                        LabelValue("Length", material.length, 0.25f),
-                        LabelValue("Diameter", material.diameter, 0.25f),
-                        LabelValue("O.D./I.D.", material.diameterType, 0.25f)
-                    )
-                )
-
-                y = drawSectionTitle(stream, margin, y, "Inspection")
-                y = drawToggleRow(
-                    stream,
-                    margin,
-                    y,
-                    "Visual Inspection Acceptable",
-                    listOf(
-                        Toggle("Yes", material.visualInspectionAcceptable),
-                        Toggle("No", !material.visualInspectionAcceptable)
-                    )
-                )
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("B16 Dimensions Acceptable", material.b16DimensionsAcceptable, 0.5f),
-                        LabelValue("Marking Actual", material.markings, 0.5f)
-                    ),
-                    boxHeight = 48f
-                )
-                y = drawToggleRow(
-                    stream,
-                    margin,
-                    y,
-                    "Marking Acceptable to Code/Standard",
-                    listOf(
-                        Toggle("Yes", material.markingAcceptable && !material.markingAcceptableNa),
-                        Toggle("No", !material.markingAcceptable && !material.markingAcceptableNa),
-                        Toggle("N/A", material.markingAcceptableNa)
-                    )
-                )
-                y = drawToggleRow(
-                    stream,
-                    margin,
-                    y,
-                    "MTR/CoC Acceptable to Specification",
-                    listOf(
-                        Toggle("Yes", material.mtrAcceptable && !material.mtrAcceptableNa),
-                        Toggle("No", !material.mtrAcceptable && !material.mtrAcceptableNa),
-                        Toggle("N/A", material.mtrAcceptableNa)
-                    )
-                )
-                y = drawToggleRow(
-                    stream,
-                    margin,
-                    y,
-                    "Disposition",
-                    listOf(
-                        Toggle("Accept", material.acceptanceStatus == "accept"),
-                        Toggle("Reject", material.acceptanceStatus == "reject")
-                    )
-                )
-
-                y = drawSectionTitle(stream, margin, y, "Comments")
-                val commentText = listOf(material.comments, material.description)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" | ")
-                y = drawMultiLineBox(stream, margin, y, width, commentText, 48f)
-
-                y = drawSectionTitle(stream, margin, y, "Quality Control")
-                y = drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("Initials", material.qcInitials, 0.25f),
-                        LabelValue("Date", dateFormatter.format(Date(material.qcDate)), 0.25f),
-                        LabelValue("Material Approval", material.materialApproval, 0.5f)
-                    )
-                )
-
-                y = drawSectionTitle(stream, margin, y, "QC Manager")
-                drawLabelBoxRow(
-                    stream,
-                    margin,
-                    y,
-                    width,
-                    listOf(
-                        LabelValue("QC Manager", material.qcManager, 0.5f),
-                        LabelValue("Initials", material.qcManagerInitials, 0.2f),
-                        LabelValue("Date", dateFormatter.format(Date(material.qcManagerDate)), 0.3f)
-                    )
-                )
+            } finally {
+                retainedScanDocuments.forEach { source ->
+                    runCatching { source.close() }
+                }
             }
-            FileOutputStream(outputFile).use { out ->
-                document.save(out)
-            }
+        }
+    }
+
+    private fun appendReceivingReport(document: PDDocument, job: JobItem, material: MaterialItem) {
+        val page = PDPage(PDRectangle.LETTER)
+        document.addPage(page)
+        PDPageContentStream(document, page).use { stream ->
+            val margin = 36f
+            val width = PDRectangle.LETTER.width - margin * 2
+            var y = PDRectangle.LETTER.height - margin
+
+            stream.setFont(PDType1Font.HELVETICA_BOLD, 16f)
+            drawText(stream, margin, y, "RECEIVING INSPECTION REPORT")
+            y -= 20f
+            stream.setFont(PDType1Font.HELVETICA, 11f)
+            drawText(stream, margin, y, "Job#: ${job.jobNumber}")
+            y -= 16f
+
+            y = drawSectionTitle(stream, margin, y, "Material Details")
+            y = drawLabelBoxRow(
+                stream,
+                margin,
+                y,
+                width,
+                listOf(
+                    LabelValue("Material Description", material.description, 0.6f),
+                    LabelValue("PO#", material.poNumber, 0.2f),
+                    LabelValue("Vendor", material.vendor, 0.2f)
+                )
+            )
+            y = drawLabelBoxRow(
+                stream,
+                margin,
+                y,
+                width,
+                listOf(
+                    LabelValue("Qty", material.quantity, 0.15f),
+                    LabelValue("Product", material.productType, 0.25f),
+                    LabelValue("Specification", material.specificationPrefix.ifBlank { material.specificationNumbers }, 0.2f),
+                    LabelValue("Grade/Type", material.gradeType, 0.2f),
+                    LabelValue(
+                        "Fitting",
+                        listOf(material.fittingStandard, material.fittingSuffix)
+                            .filter { it.isNotBlank() }
+                            .joinToString("."),
+                        0.2f
+                    )
+                )
+            )
+
+            y = drawSectionTitle(stream, margin, y, "Dimensions")
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "Unit",
+                listOf(
+                    Toggle("Imperial", material.dimensionUnit == "imperial"),
+                    Toggle("Metric", material.dimensionUnit == "metric")
+                )
+            )
+            y = drawLabelBoxRow(
+                stream,
+                margin,
+                y,
+                width,
+                listOf(
+                    LabelValue("TH 1", material.thickness1, 0.25f),
+                    LabelValue("TH 2", material.thickness2, 0.25f),
+                    LabelValue("TH 3", material.thickness3, 0.25f),
+                    LabelValue("TH 4", material.thickness4, 0.25f)
+                )
+            )
+            y = drawLabelBoxRow(
+                stream,
+                margin,
+                y,
+                width,
+                listOf(
+                    LabelValue("Width", material.width, 0.25f),
+                    LabelValue("Length", material.length, 0.25f),
+                    LabelValue("Diameter", material.diameter, 0.25f),
+                    LabelValue("O.D./I.D.", material.diameterType, 0.25f)
+                )
+            )
+
+            y = drawSectionTitle(stream, margin, y, "Inspection")
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "Visual Inspection Acceptable",
+                listOf(
+                    Toggle("Yes", material.visualInspectionAcceptable),
+                    Toggle("No", !material.visualInspectionAcceptable)
+                )
+            )
+            y -= 4f
+            y = drawLabelBoxRow(
+                stream,
+                margin,
+                y,
+                width,
+                listOf(
+                    LabelValue("B16 Dimensions Acceptable", material.b16DimensionsAcceptable, 0.5f),
+                    LabelValue("Marking Actual", material.markings, 0.5f)
+                ),
+                boxHeight = 48f
+            )
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "Marking Acceptable to Code/Standard",
+                listOf(
+                    Toggle("Yes", material.markingAcceptable && !material.markingAcceptableNa),
+                    Toggle("No", !material.markingAcceptable && !material.markingAcceptableNa),
+                    Toggle("N/A", material.markingAcceptableNa)
+                )
+            )
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "MTR/CoC Acceptable to Specification",
+                listOf(
+                    Toggle("Yes", material.mtrAcceptable && !material.mtrAcceptableNa),
+                    Toggle("No", !material.mtrAcceptable && !material.mtrAcceptableNa),
+                    Toggle("N/A", material.mtrAcceptableNa)
+                )
+            )
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "Disposition",
+                listOf(
+                    Toggle("Accept", material.acceptanceStatus == "accept"),
+                    Toggle("Reject", material.acceptanceStatus == "reject")
+                )
+            )
+
+            y = drawSectionTitle(stream, margin, y, "Comments")
+            val commentText = listOf(material.comments, material.description)
+                .filter { it.isNotBlank() }
+                .joinToString(" | ")
+            y = drawMultiLineBox(stream, margin, y, width, commentText, 48f)
+
+            y = drawSectionTitle(stream, margin, y, "Quality Control")
+            y = drawToggleRow(
+                stream,
+                margin,
+                y,
+                "Material Disposition",
+                listOf(
+                    Toggle("Approved", material.materialApproval == "approved"),
+                    Toggle("Rejected", material.materialApproval == "rejected")
+                )
+            )
+            y = drawSectionTitle(stream, margin, y, "Signatures")
+            y = drawSignatureRow(
+                document = document,
+                stream = stream,
+                x = margin,
+                y = y,
+                label = "QC Inspector",
+                printedName = material.qcInitials,
+                signaturePath = material.qcSignaturePath,
+                dateText = dateFormatter.format(Date(material.qcDate))
+            )
+            drawSignatureRow(
+                document = document,
+                stream = stream,
+                x = margin,
+                y = y,
+                label = "QC Manager",
+                printedName = material.qcManager.ifBlank { material.qcManagerInitials },
+                signaturePath = material.qcManagerSignaturePath,
+                dateText = dateFormatter.format(Date(material.qcManagerDate))
+            )
         }
     }
 
@@ -274,12 +341,14 @@ class ExportService(
         toggles.forEach { toggle ->
             drawRect(stream, cursor, y - 12f, 12f, 12f)
             if (toggle.selected) {
-                drawText(stream, cursor + 3f, y - 2f, "X")
+                stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
+                drawText(stream, cursor + 3f, y - 9f, "X")
+                stream.setFont(PDType1Font.HELVETICA, 10f)
             }
             drawText(stream, cursor + 18f, y, toggle.label)
             cursor += 90f
         }
-        return y - 18f
+        return y - 22f
     }
 
     private fun drawMultiLineBox(
@@ -294,6 +363,78 @@ class ExportService(
         stream.setFont(PDType1Font.HELVETICA, 10f)
         drawWrappedText(stream, x + 4f, y - 14f, width - 8f, text)
         return y - (height + 16f)
+    }
+
+    private fun drawSignatureRow(
+        document: PDDocument,
+        stream: PDPageContentStream,
+        x: Float,
+        y: Float,
+        label: String,
+        printedName: String,
+        signaturePath: String,
+        dateText: String
+    ): Float {
+        stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
+        drawText(stream, x, y, label)
+
+        val labelY = y - 16f
+        val printWidth = 160f
+        val signWidth = 180f
+        val dateWidth = 110f
+        val gap = 12f
+        val boxHeight = 40f
+
+        drawText(stream, x, labelY, "Print")
+        drawRect(stream, x, labelY - 2f - boxHeight, printWidth, boxHeight)
+        stream.setFont(PDType1Font.HELVETICA, 10f)
+        drawWrappedText(stream, x + 4f, labelY - 16f, printWidth - 8f, printedName)
+
+        val signX = x + printWidth + gap
+        stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
+        drawText(stream, signX, labelY, "Sign")
+        drawRect(stream, signX, labelY - 2f - boxHeight, signWidth, boxHeight)
+        drawSignatureImage(
+            document = document,
+            stream = stream,
+            signaturePath = signaturePath,
+            x = signX,
+            y = labelY - 2f - boxHeight,
+            width = signWidth,
+            height = boxHeight
+        )
+
+        val dateX = signX + signWidth + gap
+        drawText(stream, dateX, labelY, "Date")
+        drawRect(stream, dateX, labelY - 2f - boxHeight, dateWidth, boxHeight)
+        stream.setFont(PDType1Font.HELVETICA, 10f)
+        drawWrappedText(stream, dateX + 4f, labelY - 16f, dateWidth - 8f, dateText)
+
+        return y - 66f
+    }
+
+    private fun drawSignatureImage(
+        document: PDDocument,
+        stream: PDPageContentStream,
+        signaturePath: String,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float
+    ) {
+        if (signaturePath.isBlank()) return
+        val file = File(signaturePath)
+        if (!file.exists()) return
+        val image = com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFile(
+            file.absolutePath,
+            document
+        )
+        val scale = minOf((width - 6f) / image.width, (height - 6f) / image.height)
+        val drawWidth = image.width * scale
+        val drawHeight = image.height * scale
+        val drawX = x + ((width - drawWidth) / 2f)
+        val drawY = y + ((height - drawHeight) / 2f)
+        stream.drawImage(image, drawX, drawY, drawWidth, drawHeight)
     }
 
     private fun drawRect(stream: PDPageContentStream, x: Float, y: Float, w: Float, h: Float) {
@@ -346,106 +487,206 @@ class ExportService(
         val selected: Boolean
     )
 
-    private fun exportPhotos(material: MaterialItem, exportRoot: File, baseName: String) {
-        val photoPaths = material.photoPaths.split("|").filter { it.isNotBlank() }
-        if (photoPaths.isEmpty()) return
-        val photoDir = File(exportRoot, "photos").also { it.mkdirs() }
-        photoPaths.forEachIndexed { index, path ->
-            val source = File(path)
-            if (!source.exists()) return@forEachIndexed
-            val target = File(photoDir, "${baseName}_photo_${index + 1}.jpg")
-            source.copyTo(target, overwrite = true)
+    private data class MaterialPacketResult(
+        val created: Boolean,
+        val scanSourceCount: Int,
+        val photoCount: Int
+    )
+
+    private fun appendScanPages(
+        document: PDDocument,
+        scanPaths: List<String>,
+        retainedScanDocuments: MutableList<PDDocument>
+    ): Int {
+        var includedCount = 0
+        scanPaths.forEach { path ->
+            val file = File(path)
+            if (!file.exists()) return@forEach
+            if (path.endsWith(".pdf", true)) {
+                val source = PDDocument.load(file)
+                retainedScanDocuments += source
+                source.pages.forEach { page ->
+                    document.importPage(page)
+                }
+            } else {
+                val image = com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFile(
+                    file.absolutePath,
+                    document
+                )
+                val page = PDPage(PDRectangle.LETTER)
+                document.addPage(page)
+                PDPageContentStream(document, page).use { stream ->
+                    val scale = minOf(
+                        PDRectangle.LETTER.width / image.width,
+                        PDRectangle.LETTER.height / image.height
+                    )
+                    val width = image.width * scale
+                    val height = image.height * scale
+                    val x = (PDRectangle.LETTER.width - width) / 2
+                    val y = (PDRectangle.LETTER.height - height) / 2
+                    stream.drawImage(image, x, y, width, height)
+                }
+            }
+            includedCount += 1
         }
+        return includedCount
     }
 
-    private fun exportScans(material: MaterialItem, scanDir: File, baseName: String) {
-        val scanPaths = material.scanPaths.split("|").filter { it.isNotBlank() }
-        if (scanPaths.isEmpty()) return
-        val target = File(scanDir, "${baseName}_mtr.pdf")
-        PDDocument().use { document ->
-            scanPaths.forEach { path ->
-                val file = File(path)
-                if (!file.exists()) return@forEach
-                if (path.endsWith(".pdf", true)) {
-                    PDDocument.load(file).use { source ->
-                        source.pages.forEach { page ->
-                            document.importPage(page)
-                        }
-                    }
-                } else {
+    private fun appendPhotoPages(document: PDDocument, photoPaths: List<String>): Int {
+        val existingPhotos = photoPaths.map(::File).filter { it.exists() }
+        if (existingPhotos.isEmpty()) return 0
+
+        val margin = 36f
+        val headerGap = 30f
+        val gutter = 12f
+        val cellWidth = (PDRectangle.LETTER.width - (margin * 2) - gutter) / 2
+        val cellHeight = (PDRectangle.LETTER.height - (margin * 2) - headerGap - gutter) / 2
+
+        existingPhotos.chunked(4).forEachIndexed { pageIndex, chunk ->
+            val page = PDPage(PDRectangle.LETTER)
+            document.addPage(page)
+            PDPageContentStream(document, page).use { stream ->
+                stream.setFont(PDType1Font.HELVETICA_BOLD, 12f)
+                drawText(
+                    stream,
+                    margin,
+                    PDRectangle.LETTER.height - margin,
+                    "Material Photos${if (pageIndex == 0) "" else " (${pageIndex + 1})"}"
+                )
+
+                chunk.forEachIndexed { index, file ->
+                    val row = index / 2
+                    val column = index % 2
+                    val cellX = margin + (column * (cellWidth + gutter))
+                    val cellY = PDRectangle.LETTER.height - margin - headerGap - (row * (cellHeight + gutter)) - cellHeight
+                    drawRect(stream, cellX, cellY, cellWidth, cellHeight)
+
                     val image = com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFile(
                         file.absolutePath,
                         document
                     )
-                    val page = PDPage(PDRectangle.LETTER)
-                    document.addPage(page)
-                    PDPageContentStream(document, page).use { stream ->
-                        val scale = minOf(
-                            PDRectangle.LETTER.width / image.width,
-                            PDRectangle.LETTER.height / image.height
-                        )
-                        val width = image.width * scale
-                        val height = image.height * scale
-                        val x = (PDRectangle.LETTER.width - width) / 2
-                        val y = (PDRectangle.LETTER.height - height) / 2
-                        stream.drawImage(image, x, y, width, height)
-                    }
+                    val scale = minOf(cellWidth / image.width, cellHeight / image.height)
+                    val drawWidth = image.width * scale
+                    val drawHeight = image.height * scale
+                    val drawX = cellX + ((cellWidth - drawWidth) / 2f)
+                    val drawY = cellY + ((cellHeight - drawHeight) / 2f)
+                    stream.drawImage(image, drawX, drawY, drawWidth, drawHeight)
                 }
             }
-            if (document.numberOfPages > 0) {
-                FileOutputStream(target).use { out -> document.save(out) }
-            }
         }
+        return existingPhotos.size
     }
 
-    private fun writeExportNotice(exportRoot: File, job: JobItem) {
+    private fun writeExportNotice(
+        exportRoot: File,
+        job: JobItem,
+        materialPacketCount: Int,
+        scanSourceCount: Int,
+        photoCount: Int
+    ) {
         val notice = File(exportRoot, "export_info.txt")
         val content = buildString {
             appendLine("Job Export")
             appendLine("Job: ${job.jobNumber}")
             appendLine("Description: ${job.description}")
             appendLine("Exported: ${dateFormatter.format(Date())}")
+            appendLine("Material packet PDFs: $materialPacketCount")
+            appendLine("Included scan sources: $scanSourceCount")
+            appendLine("Included photos: $photoCount")
         }
         notice.writeText(content)
     }
 
-    private fun copyToDownloads(exportRoot: File, jobNumber: String) {
+    private fun copyToDownloads(exportRoot: File, jobNumber: String): String {
         val downloadDir = "MaterialGuardian/${sanitize(jobNumber)}"
         val rootPath = exportRoot.absolutePath
+        clearExistingDownloadsExport(downloadDir)
         exportRoot.walkTopDown().forEach { file ->
             if (file.isDirectory) return@forEach
             val relativePath = file.absolutePath.removePrefix(rootPath).trimStart(File.separatorChar)
-            val displayName = relativePath.replace(File.separatorChar, '_')
+            val relativeParent = File(relativePath).parent?.replace(File.separatorChar, '/')?.trim('/')
+            val targetRelativeDir = listOfNotNull(downloadDir, relativeParent)
+                .filter { it.isNotBlank() }
+                .joinToString("/")
+            val displayName = file.name
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
                     put(MediaStore.MediaColumns.MIME_TYPE, guessMimeType(file.name))
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/$downloadDir")
+                    put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/$targetRelativeDir"
+                    )
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
                 val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Files.getContentUri("external"), values)
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { output ->
-                        file.inputStream().use { it.copyTo(output) }
+                    runCatching {
+                        resolver.openOutputStream(uri)?.use { output ->
+                            file.inputStream().use { it.copyTo(output) }
+                        } ?: error("Could not open output stream for $displayName")
+                        resolver.update(
+                            uri,
+                            ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                            null,
+                            null
+                        )
+                    }.getOrElse { error ->
+                        resolver.delete(uri, null, null)
+                        throw error
                     }
+                } else {
+                    throw IllegalStateException("Could not create Downloads entry for $displayName")
                 }
             } else {
                 val legacyDir = File(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    downloadDir
+                    targetRelativeDir
                 )
                 legacyDir.mkdirs()
                 val target = File(legacyDir, displayName)
                 file.copyTo(target, overwrite = true)
             }
         }
+        return "Downloads/$downloadDir"
     }
 
     private fun guessMimeType(name: String): String {
         return when {
             name.endsWith(".pdf", true) -> "application/pdf"
             name.endsWith(".jpg", true) || name.endsWith(".jpeg", true) -> "image/jpeg"
+            name.endsWith(".txt", true) -> "text/plain"
             else -> "application/octet-stream"
+        }
+    }
+
+    private fun clearExistingDownloadsExport(downloadDir: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val relativePrefix = Environment.DIRECTORY_DOWNLOADS + "/$downloadDir/"
+            val resolver = context.contentResolver
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            resolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf("$relativePrefix%"),
+                null
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idIndex)
+                    resolver.delete(ContentUris.withAppendedId(collection, id), null, null)
+                }
+            }
+        } else {
+            val legacyDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                downloadDir
+            )
+            if (legacyDir.exists()) {
+                legacyDir.deleteRecursively()
+            }
         }
     }
 
@@ -453,6 +694,17 @@ class ExportService(
         return value.lowercase()
             .replace(Regex("[^a-z0-9]+"), "_")
             .trim('_')
+    }
+
+    private fun decodeStoredPhotoPaths(value: String): List<String> {
+        return value.split("|").filter { it.isNotBlank() }
+    }
+
+    private fun decodeStoredScanSourcePaths(value: String): List<String> {
+        return value.split("|")
+            .filter { it.isNotBlank() }
+            .map { it.substringBefore('\t') }
+            .filter { it.isNotBlank() }
     }
 
     private fun truncate(value: String, length: Int): String {

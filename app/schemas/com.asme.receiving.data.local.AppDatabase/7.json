@@ -1,0 +1,353 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 7,
+    "identityHash": "997c6b49c103c1a8ba2333bc5b17020a",
+    "entities": [
+      {
+        "tableName": "jobs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`jobNumber` TEXT NOT NULL, `description` TEXT NOT NULL, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `exportedAt` INTEGER, `exportPath` TEXT NOT NULL, PRIMARY KEY(`jobNumber`))",
+        "fields": [
+          {
+            "fieldPath": "jobNumber",
+            "columnName": "jobNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exportedAt",
+            "columnName": "exportedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "exportPath",
+            "columnName": "exportPath",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "jobNumber"
+          ]
+        }
+      },
+      {
+        "tableName": "materials",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `jobNumber` TEXT NOT NULL, `description` TEXT NOT NULL, `vendor` TEXT NOT NULL, `quantity` TEXT NOT NULL, `poNumber` TEXT NOT NULL, `productType` TEXT NOT NULL, `specificationPrefix` TEXT NOT NULL, `gradeType` TEXT NOT NULL, `fittingStandard` TEXT NOT NULL, `fittingSuffix` TEXT NOT NULL, `dimensionUnit` TEXT NOT NULL, `thickness1` TEXT NOT NULL, `thickness2` TEXT NOT NULL, `thickness3` TEXT NOT NULL, `thickness4` TEXT NOT NULL, `width` TEXT NOT NULL, `length` TEXT NOT NULL, `diameter` TEXT NOT NULL, `diameterType` TEXT NOT NULL, `visualInspectionAcceptable` INTEGER NOT NULL, `b16DimensionsAcceptable` TEXT NOT NULL, `specificationNumbers` TEXT NOT NULL, `markings` TEXT NOT NULL, `markingAcceptable` INTEGER NOT NULL, `markingAcceptableNa` INTEGER NOT NULL, `mtrAcceptable` INTEGER NOT NULL, `mtrAcceptableNa` INTEGER NOT NULL, `acceptanceStatus` TEXT NOT NULL, `comments` TEXT NOT NULL, `qcInitials` TEXT NOT NULL, `qcDate` INTEGER NOT NULL, `qcSignaturePath` TEXT NOT NULL, `materialApproval` TEXT NOT NULL, `qcManager` TEXT NOT NULL, `qcManagerInitials` TEXT NOT NULL, `qcManagerDate` INTEGER NOT NULL, `qcManagerSignaturePath` TEXT NOT NULL, `offloadStatus` TEXT NOT NULL, `pdfStatus` TEXT NOT NULL, `pdfStoragePath` TEXT NOT NULL, `photoPaths` TEXT NOT NULL, `scanPaths` TEXT NOT NULL, `photoCount` INTEGER NOT NULL, `receivedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "jobNumber",
+            "columnName": "jobNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vendor",
+            "columnName": "vendor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "poNumber",
+            "columnName": "poNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productType",
+            "columnName": "productType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specificationPrefix",
+            "columnName": "specificationPrefix",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gradeType",
+            "columnName": "gradeType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fittingStandard",
+            "columnName": "fittingStandard",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fittingSuffix",
+            "columnName": "fittingSuffix",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dimensionUnit",
+            "columnName": "dimensionUnit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thickness1",
+            "columnName": "thickness1",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thickness2",
+            "columnName": "thickness2",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thickness3",
+            "columnName": "thickness3",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thickness4",
+            "columnName": "thickness4",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "length",
+            "columnName": "length",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diameter",
+            "columnName": "diameter",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diameterType",
+            "columnName": "diameterType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visualInspectionAcceptable",
+            "columnName": "visualInspectionAcceptable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "b16DimensionsAcceptable",
+            "columnName": "b16DimensionsAcceptable",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specificationNumbers",
+            "columnName": "specificationNumbers",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markings",
+            "columnName": "markings",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markingAcceptable",
+            "columnName": "markingAcceptable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markingAcceptableNa",
+            "columnName": "markingAcceptableNa",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mtrAcceptable",
+            "columnName": "mtrAcceptable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mtrAcceptableNa",
+            "columnName": "mtrAcceptableNa",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acceptanceStatus",
+            "columnName": "acceptanceStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comments",
+            "columnName": "comments",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcInitials",
+            "columnName": "qcInitials",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcDate",
+            "columnName": "qcDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcSignaturePath",
+            "columnName": "qcSignaturePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "materialApproval",
+            "columnName": "materialApproval",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcManager",
+            "columnName": "qcManager",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcManagerInitials",
+            "columnName": "qcManagerInitials",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcManagerDate",
+            "columnName": "qcManagerDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qcManagerSignaturePath",
+            "columnName": "qcManagerSignaturePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "offloadStatus",
+            "columnName": "offloadStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pdfStatus",
+            "columnName": "pdfStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pdfStoragePath",
+            "columnName": "pdfStoragePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoPaths",
+            "columnName": "photoPaths",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scanPaths",
+            "columnName": "scanPaths",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoCount",
+            "columnName": "photoCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedAt",
+            "columnName": "receivedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_materials_jobNumber",
+            "unique": false,
+            "columnNames": [
+              "jobNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_materials_jobNumber` ON `${TABLE_NAME}` (`jobNumber`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '997c6b49c103c1a8ba2333bc5b17020a')"
+    ]
+  }
+}

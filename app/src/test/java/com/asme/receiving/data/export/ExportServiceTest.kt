@@ -32,7 +32,7 @@ class ExportServiceTest {
 
     @Ignore("PDFBox requires Android resources; run as instrumented test.")
     @Test
-    fun exportCreatesReceivingPdf() = runBlocking {
+    fun exportCreatesMaterialPacketPdf() = runBlocking {
         val jobRepo = JobRepository()
         val materialRepo = MaterialRepository()
         val job = JobItem(jobNumber = "JOB-99", description = "Export test")
@@ -45,11 +45,11 @@ class ExportServiceTest {
             )
         )
 
-        val exportPath = ExportService().exportJob("JOB-99")
-        val exportDir = File(exportPath, "receiving_reports")
+        val exportResult = ExportService().exportJob("JOB-99")
+        val exportDir = File(exportResult.internalPath, "material_packets")
         val files = exportDir.listFiles()?.toList().orEmpty()
 
         assertTrue(exportDir.exists())
-        assertTrue(files.any { it.name.endsWith("_receiving.pdf") })
+        assertTrue(files.any { it.name.endsWith("_packet.pdf") })
     }
 }

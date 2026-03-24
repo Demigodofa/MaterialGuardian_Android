@@ -6,6 +6,8 @@ import com.asme.receiving.data.local.AppDatabaseProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,5 +48,39 @@ class JobRepositoryTest {
         assertEquals(true, success)
         assertEquals(1, materials.size)
         assertEquals("JOB-2", materials.first().jobNumber)
+    }
+
+    @Test
+    fun renameJob_movesSanitizedMediaDirectory() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val jobRepo = JobRepository()
+        val originalDir = File(context.filesDir, "job_media/job_100_a")
+        val renamedDir = File(context.filesDir, "job_media/job_200_b")
+        originalDir.mkdirs()
+        File(originalDir, "sample.txt").writeText("media")
+
+        jobRepo.upsert(JobItem(jobNumber = "JOB 100/A", description = "Test"))
+
+        val success = jobRepo.renameJob("JOB 100/A", "JOB 200/B")
+
+        assertTrue(success)
+        assertFalse(originalDir.exists())
+        assertTrue(renamedDir.exists())
+        assertTrue(File(renamedDir, "sample.txt").exists())
+    }
+
+    @Test
+    fun deleteJob_removesSanitizedMediaDirectory() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val jobRepo = JobRepository()
+        val mediaDir = File(context.filesDir, "job_media/job_300_c")
+        mediaDir.mkdirs()
+        File(mediaDir, "sample.txt").writeText("media")
+
+        jobRepo.upsert(JobItem(jobNumber = "JOB 300/C", description = "Delete test"))
+
+        jobRepo.deleteJob("JOB 300/C")
+
+        assertFalse(mediaDir.exists())
     }
 }

@@ -1,6 +1,7 @@
 package com.asme.receiving.ui
 
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,11 +28,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -45,13 +49,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,16 +69,24 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.platform.LocalDensity
+import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.asme.receiving.R
+import com.asme.receiving.ui.components.MaterialGuardianHeader
 import com.asme.receiving.data.MaterialItem
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
@@ -92,7 +108,10 @@ fun MaterialFormScreen(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
+    val draftStore = remember(context) { MaterialFormDraftStore(context) }
+    val draftKey = remember(jobNumber, materialId) { draftStore.draftKey(jobNumber, materialId) }
 
     var materialDescription by remember { mutableStateOf("") }
     var poNumber by remember { mutableStateOf("") }
@@ -123,11 +142,13 @@ fun MaterialFormScreen(
     var comments by remember { mutableStateOf("") }
     var qcInitials by remember { mutableStateOf("") }
     var qcDate by remember { mutableStateOf(LocalDate.now()) }
+    var qcSignaturePath by remember { mutableStateOf("") }
     var materialApproval by remember { mutableStateOf("approved") }
     var qcManager by remember { mutableStateOf("") }
     var qcManagerInitials by remember { mutableStateOf("") }
     var qcManagerDate by remember { mutableStateOf(LocalDate.now()) }
-    var receivedAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var qcManagerSignaturePath by remember { mutableStateOf("") }
+    var receivedAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var offloadStatus by remember { mutableStateOf("pending") }
     var pdfStatus by remember { mutableStateOf("pending") }
     var pdfStoragePath by remember { mutableStateOf("") }
@@ -136,6 +157,16 @@ fun MaterialFormScreen(
     var activeCapture by remember { mutableStateOf<CaptureType?>(null) }
     var replaceIndex by remember { mutableStateOf<Int?>(null) }
     var replaceType by remember { mutableStateOf<CaptureType?>(null) }
+    var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingPhotoPath by remember { mutableStateOf<String?>(null) }
+    var pendingPhotoReplaceIndex by remember { mutableStateOf<Int?>(null) }
+    var pendingPhotoLaunchAfterPermission by remember { mutableStateOf(false) }
+    var photoSessionActive by remember { mutableStateOf(false) }
+    var showPhotoReview by remember { mutableStateOf(false) }
+    var pendingScanCapture by remember { mutableStateOf<ScanCapture?>(null) }
+    var pendingScanReplaceIndex by remember { mutableStateOf<Int?>(null) }
+    var scanSessionActive by remember { mutableStateOf(false) }
+    var showScanReview by remember { mutableStateOf(false) }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSaveSuccess by remember { mutableStateOf(false) }
@@ -143,20 +174,58 @@ fun MaterialFormScreen(
     var showMediaActionDialog by remember { mutableStateOf(false) }
     var selectedMediaIndex by remember { mutableStateOf<Int?>(null) }
     var selectedMediaType by remember { mutableStateOf<CaptureType?>(null) }
+    var showSignatureDialog by remember { mutableStateOf(false) }
+    var signatureTarget by remember { mutableStateOf(SignatureTarget.QcInspector) }
+    var showMaxPhotosDialog by remember { mutableStateOf(false) }
     var showScanLimitDialog by remember { mutableStateOf(false) }
     var showScanFallbackDialog by remember { mutableStateOf(false) }
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingPhotoPath != null) {
+            showPhotoReview = true
+        } else {
+            pendingPhotoPath?.let { File(it).delete() }
+            pendingPhotoUri = null
+            pendingPhotoPath = null
+            pendingPhotoReplaceIndex = null
+            photoSessionActive = false
+        }
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingPhotoLaunchAfterPermission) {
+            pendingPhotoLaunchAfterPermission = false
+            pendingPhotoUri?.let { takePictureLauncher.launch(it) }
+        } else {
+            pendingPhotoLaunchAfterPermission = false
+            pendingPhotoPath?.let { File(it).delete() }
+            pendingPhotoUri = null
+            pendingPhotoPath = null
+            pendingPhotoReplaceIndex = null
+            photoSessionActive = false
+            saveError = "Camera permission is required to add photos."
+        }
+    }
     val scanLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        val data = result.data ?: return@rememberLauncherForActivityResult
+        val data = result.data
+        if (data == null) {
+            scanSessionActive = false
+            pendingScanReplaceIndex = null
+            return@rememberLauncherForActivityResult
+        }
         val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(data)
         val pdf = scanResult?.pdf
         if (pdf != null && scanCaptures.size < 8) {
+            val targetIndex = pendingScanReplaceIndex?.plus(1) ?: (scanCaptures.size + 1).coerceAtMost(8)
             val target = buildScanPdfFile(
                 context = context,
                 jobNumber = jobNumber,
                 materialDescription = materialDescription,
-                index = scanCaptures.size + 1
+                index = targetIndex
             )
             context.contentResolver.openInputStream(pdf.uri)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
@@ -166,19 +235,22 @@ fun MaterialFormScreen(
                     context = context,
                     jobNumber = jobNumber,
                     materialDescription = materialDescription,
-                    index = scanCaptures.size + 1
+                    index = targetIndex
                 )
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     previewFile.outputStream().use { output -> input.copyTo(output) }
                 }
                 previewFile.absolutePath
             } ?: ""
-            scanCaptures.add(
+            pendingScanCapture =
                 ScanCapture(
-                    pdfPath = target.absolutePath,
+                    sourcePath = target.absolutePath,
                     previewPath = previewPath
                 )
-            )
+            showScanReview = true
+        } else {
+            scanSessionActive = false
+            pendingScanReplaceIndex = null
         }
     }
 
@@ -193,7 +265,11 @@ fun MaterialFormScreen(
         acceptanceStatus != "accept" || materialApproval != "approved" ||
         dimensionUnit != "imperial" || diameterType.isNotBlank() ||
         b16DimensionsAcceptable.isNotBlank() || photoPaths.isNotEmpty() || scanCaptures.isNotEmpty() ||
-        markingAcceptableNa || mtrAcceptableNa
+        markingAcceptableNa || mtrAcceptableNa || qcSignaturePath.isNotBlank() ||
+        qcManagerSignaturePath.isNotBlank()
+
+    val encodedPhotoPaths = photoPaths.joinToString("|")
+    val encodedScanPaths = scanCaptures.joinToString("|") { encodeScanCapture(it) }
 
     BackHandler(enabled = isDirty) {
         showDiscardDialog = true
@@ -205,9 +281,7 @@ fun MaterialFormScreen(
         }
     }
 
-    LaunchedEffect(uiState.material?.id) {
-        val material = uiState.material ?: return@LaunchedEffect
-        if (material.id != materialId) return@LaunchedEffect
+    fun restoreMaterialState(material: MaterialItem) {
         applyMaterialToState(
             material = material,
             onDescription = { materialDescription = it },
@@ -239,10 +313,12 @@ fun MaterialFormScreen(
             onComments = { comments = it },
             onQcInitials = { qcInitials = it },
             onQcDate = { qcDate = it },
+            onQcSignaturePath = { qcSignaturePath = it },
             onMaterialApproval = { materialApproval = it },
             onQcManager = { qcManager = it },
             onQcManagerInitials = { qcManagerInitials = it },
             onQcManagerDate = { qcManagerDate = it },
+            onQcManagerSignaturePath = { qcManagerSignaturePath = it },
             onReceivedAt = { receivedAt = it },
             onOffloadStatus = { offloadStatus = it },
             onPdfStatus = { pdfStatus = it },
@@ -252,6 +328,26 @@ fun MaterialFormScreen(
         photoPaths.addAll(decodePaths(material.photoPaths))
         scanCaptures.clear()
         scanCaptures.addAll(decodeScanCaptures(material.scanPaths))
+    }
+
+    var restoredDraftOrRecord by remember(draftKey) { mutableStateOf(false) }
+
+    LaunchedEffect(draftKey, materialId, uiState.loading, uiState.material?.id) {
+        if (restoredDraftOrRecord) return@LaunchedEffect
+        val draft = draftStore.load(draftKey)
+        if (materialId.isNullOrBlank()) {
+            if (draft != null) {
+                restoreMaterialState(draft)
+            }
+            restoredDraftOrRecord = true
+            return@LaunchedEffect
+        }
+        if (uiState.loading) return@LaunchedEffect
+        val source = draft ?: uiState.material
+        if (source != null) {
+            restoreMaterialState(source)
+        }
+        restoredDraftOrRecord = true
     }
 
     LaunchedEffect(fittingStandard, fittingSuffix) {
@@ -267,15 +363,342 @@ fun MaterialFormScreen(
         }
     }
 
+    fun buildDraftSnapshot(): MaterialItem {
+        return MaterialItem(
+            id = materialId ?: "",
+            jobNumber = jobNumber,
+            description = materialDescription,
+            vendor = vendor,
+            quantity = quantity,
+            poNumber = poNumber,
+            productType = productType,
+            specificationPrefix = specificationPrefix,
+            gradeType = gradeType,
+            fittingStandard = fittingStandard,
+            fittingSuffix = fittingSuffix,
+            dimensionUnit = dimensionUnit,
+            thickness1 = thickness1,
+            thickness2 = thickness2,
+            thickness3 = thickness3,
+            thickness4 = thickness4,
+            width = width,
+            length = length,
+            diameter = diameter,
+            diameterType = diameterType,
+            visualInspectionAcceptable = visualInspectionAcceptable,
+            b16DimensionsAcceptable = b16DimensionsAcceptable,
+            specificationNumbers = specificationPrefix,
+            markings = markings,
+            markingAcceptable = markingAcceptable,
+            markingAcceptableNa = markingAcceptableNa,
+            mtrAcceptable = mtrAcceptable,
+            mtrAcceptableNa = mtrAcceptableNa,
+            acceptanceStatus = acceptanceStatus,
+            comments = comments,
+            qcInitials = qcInitials,
+            qcDate = toEpochMillis(qcDate),
+            qcSignaturePath = qcSignaturePath,
+            materialApproval = materialApproval,
+            qcManager = qcManager,
+            qcManagerInitials = qcManagerInitials,
+            qcManagerDate = toEpochMillis(qcManagerDate),
+            qcManagerSignaturePath = qcManagerSignaturePath,
+            offloadStatus = offloadStatus,
+            pdfStatus = pdfStatus,
+            pdfStoragePath = pdfStoragePath,
+            photoPaths = photoPaths.joinToString("|"),
+            scanPaths = scanCaptures.map { encodeScanCapture(it) }.joinToString("|"),
+            photoCount = photoPaths.size,
+            receivedAt = receivedAt
+        )
+    }
+
+    val shouldPersistDraft = materialId != null || isDirty
+    val latestDraftSnapshot by rememberUpdatedState(newValue = buildDraftSnapshot())
+    val latestShouldPersistDraft by rememberUpdatedState(newValue = shouldPersistDraft)
+
+    DisposableEffect(lifecycleOwner, draftKey, restoredDraftOrRecord) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && restoredDraftOrRecord) {
+                if (latestShouldPersistDraft) {
+                    draftStore.saveImmediately(draftKey, latestDraftSnapshot)
+                } else {
+                    draftStore.clearImmediately(draftKey)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    fun launchPhotoCapture(replaceAt: Int? = null) {
+        if (replaceAt == null && photoPaths.size >= 4) {
+            showMaxPhotosDialog = true
+            photoSessionActive = false
+            return
+        }
+        val targetIndex = (replaceAt?.plus(1) ?: (photoPaths.size + 1)).coerceAtMost(4)
+        val file = buildMediaFile(
+            context = context,
+            jobNumber = jobNumber,
+            materialDescription = materialDescription,
+            type = CaptureType.PHOTO,
+            index = targetIndex
+        )
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        pendingPhotoUri = uri
+        pendingPhotoPath = file.absolutePath
+        pendingPhotoReplaceIndex = replaceAt
+        draftStore.saveImmediately(draftKey, buildDraftSnapshot())
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.CAMERA
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            takePictureLauncher.launch(uri)
+        } else {
+            pendingPhotoLaunchAfterPermission = true
+            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+        }
+    }
+
+    fun launchScanSession(replaceAt: Int? = null) {
+        if (replaceAt == null && scanCaptures.size >= 8) {
+            showScanLimitDialog = true
+            scanSessionActive = false
+            return
+        }
+        pendingScanReplaceIndex = replaceAt
+        draftStore.saveImmediately(draftKey, buildDraftSnapshot())
+        launchScanCapture(
+            context = context,
+            jobNumber = jobNumber,
+            materialDescription = materialDescription,
+            scanLauncher = scanLauncher,
+            onFallback = {
+                showScanFallbackDialog = true
+                replaceIndex = replaceAt
+                replaceType = CaptureType.SCAN
+                activeCapture = CaptureType.SCAN
+            }
+        )
+    }
+
+    LaunchedEffect(
+        draftKey,
+        restoredDraftOrRecord,
+        materialDescription,
+        poNumber,
+        vendor,
+        quantity,
+        productType,
+        specificationPrefix,
+        gradeType,
+        fittingStandard,
+        fittingSuffix,
+        dimensionUnit,
+        thickness1,
+        thickness2,
+        thickness3,
+        thickness4,
+        width,
+        length,
+        diameter,
+        diameterType,
+        visualInspectionAcceptable,
+        b16DimensionsAcceptable,
+        markings,
+        markingAcceptable,
+        markingAcceptableNa,
+        mtrAcceptable,
+        mtrAcceptableNa,
+        acceptanceStatus,
+        comments,
+        qcInitials,
+        qcDate,
+        qcSignaturePath,
+        materialApproval,
+        qcManager,
+        qcManagerInitials,
+        qcManagerDate,
+        qcManagerSignaturePath,
+        receivedAt,
+        offloadStatus,
+        pdfStatus,
+        pdfStoragePath,
+        encodedPhotoPaths,
+        encodedScanPaths
+    ) {
+        if (!restoredDraftOrRecord) return@LaunchedEffect
+        if (shouldPersistDraft) {
+            draftStore.save(draftKey, buildDraftSnapshot())
+        } else {
+            draftStore.clear(draftKey)
+        }
+    }
+
+    if (showMaxPhotosDialog) {
+        AlertDialog(
+            onDismissRequest = { showMaxPhotosDialog = false },
+            title = { Text("Max photos taken") },
+            text = { Text("You have reached the 4-photo limit for this material.") },
+            confirmButton = {
+                TextButton(onClick = { showMaxPhotosDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (showPhotoReview && pendingPhotoPath != null) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Review photo") },
+            text = {
+                PhotoFilePreview(
+                    path = pendingPhotoPath.orEmpty(),
+                    emptyLabel = "Photo preview unavailable."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val path = pendingPhotoPath ?: return@TextButton
+                    val replaceAt = pendingPhotoReplaceIndex
+                    if (replaceAt != null && replaceAt < photoPaths.size) {
+                        val oldPath = photoPaths[replaceAt]
+                        if (oldPath != path) {
+                            File(oldPath).delete()
+                        }
+                        photoPaths[replaceAt] = path
+                    } else if (photoPaths.size < 4) {
+                        photoPaths.add(path)
+                    }
+                    pendingPhotoUri = null
+                    pendingPhotoPath = null
+                    pendingPhotoReplaceIndex = null
+                    showPhotoReview = false
+                    if (photoPaths.size >= 4) {
+                        showMaxPhotosDialog = true
+                        photoSessionActive = false
+                    } else if (photoSessionActive) {
+                        launchPhotoCapture()
+                    }
+                }) {
+                    Text("Keep")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = {
+                        pendingPhotoPath?.let { File(it).delete() }
+                        pendingPhotoUri = null
+                        pendingPhotoPath = null
+                        showPhotoReview = false
+                        launchPhotoCapture(replaceAt = pendingPhotoReplaceIndex)
+                    }) {
+                        Text("Retake")
+                    }
+                    TextButton(onClick = {
+                        pendingPhotoPath?.let { File(it).delete() }
+                        pendingPhotoUri = null
+                        pendingPhotoPath = null
+                        pendingPhotoReplaceIndex = null
+                        showPhotoReview = false
+                        photoSessionActive = false
+                    }) {
+                        Text("Exit")
+                    }
+                }
+            }
+        )
+    }
+
+    if (showScanReview && pendingScanCapture != null) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Review scan") },
+            text = {
+                ScanCapturePreview(capture = pendingScanCapture!!)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val capture = pendingScanCapture ?: return@TextButton
+                    val replaceAt = pendingScanReplaceIndex
+                    if (replaceAt != null && replaceAt < scanCaptures.size) {
+                        val existing = scanCaptures[replaceAt]
+                        if (existing.sourcePath != capture.sourcePath) {
+                            File(existing.sourcePath).delete()
+                        }
+                        if (existing.previewPath.isNotBlank() && existing.previewPath != capture.previewPath) {
+                            File(existing.previewPath).delete()
+                        }
+                        scanCaptures[replaceAt] = capture
+                    } else if (scanCaptures.size < 8) {
+                        scanCaptures.add(capture)
+                    }
+                    pendingScanCapture = null
+                    pendingScanReplaceIndex = null
+                    showScanReview = false
+                    if (scanCaptures.size >= 8) {
+                        showScanLimitDialog = true
+                        scanSessionActive = false
+                    } else if (scanSessionActive) {
+                        launchScanSession()
+                    }
+                }) {
+                    Text("Keep")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = {
+                        pendingScanCapture?.let {
+                            File(it.sourcePath).delete()
+                            if (it.previewPath.isNotBlank()) {
+                                File(it.previewPath).delete()
+                            }
+                        }
+                        pendingScanCapture = null
+                        showScanReview = false
+                        launchScanSession(replaceAt = pendingScanReplaceIndex)
+                    }) {
+                        Text("Retake")
+                    }
+                    TextButton(onClick = {
+                        pendingScanCapture?.let {
+                            File(it.sourcePath).delete()
+                            if (it.previewPath.isNotBlank()) {
+                                File(it.previewPath).delete()
+                            }
+                        }
+                        pendingScanCapture = null
+                        pendingScanReplaceIndex = null
+                        showScanReview = false
+                        scanSessionActive = false
+                    }) {
+                        Text("Exit")
+                    }
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF6F7F9))
+            .background(MaterialGuardianColors.FormBackground)
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 16.dp)
     ) {
-        HeaderBar(
+        MaterialGuardianHeader(
             onBack = {
                 if (isDirty) {
                     showDiscardDialog = true
@@ -294,7 +717,7 @@ fun MaterialFormScreen(
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp,
             lineHeight = 30.sp,
-            color = Color(0xFF4B5563),
+            color = MaterialGuardianColors.SectionTitle,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -577,14 +1000,28 @@ fun MaterialFormScreen(
         }
 
         LabeledField("Quality Control") {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = qcInitials,
-                    onValueChange = { qcInitials = it.take(20) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = qcInitials,
+                        onValueChange = { qcInitials = it.take(20) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    DateField(qcDate, modifier = Modifier.weight(0.7f)) { qcDate = it }
+                }
+                SignatureField(
+                    label = "QC inspector signature",
+                    signaturePath = qcSignaturePath,
+                    onSign = {
+                        signatureTarget = SignatureTarget.QcInspector
+                        showSignatureDialog = true
+                    },
+                    onClear = {
+                        deleteIfPresent(qcSignaturePath)
+                        qcSignaturePath = ""
+                    }
                 )
-                DateField(qcDate, modifier = Modifier.weight(0.7f)) { qcDate = it }
             }
         }
 
@@ -602,14 +1039,28 @@ fun MaterialFormScreen(
         }
 
         LabeledField("QC Manager") {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = qcManager,
-                    onValueChange = { qcManager = it.take(20) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = qcManager,
+                        onValueChange = { qcManager = it.take(20) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    DateField(qcManagerDate, modifier = Modifier.weight(0.7f)) { qcManagerDate = it }
+                }
+                SignatureField(
+                    label = "QC manager signature",
+                    signaturePath = qcManagerSignaturePath,
+                    onSign = {
+                        signatureTarget = SignatureTarget.QcManager
+                        showSignatureDialog = true
+                    },
+                    onClear = {
+                        deleteIfPresent(qcManagerSignaturePath)
+                        qcManagerSignaturePath = ""
+                    }
                 )
-                DateField(qcManagerDate, modifier = Modifier.weight(0.7f)) { qcManagerDate = it }
             }
         }
 
@@ -619,23 +1070,27 @@ fun MaterialFormScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        activeCapture = CaptureType.PHOTO
-                        replaceIndex = null
-                        replaceType = null
+                        photoSessionActive = true
+                        launchPhotoCapture()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                 ) {
                     Text(
-                        text = "Take up to 4 material photos (${photoPaths.size}/4)",
+                        text = "Add material photos (${photoPaths.size}/4)",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                ThumbnailRow(
-                    paths = photoPaths,
-                    maxCount = 4,
+                Text(
+                    text = "Use these for arrival condition, markings, and visible damage.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialGuardianColors.TextSecondary
+                )
+              ThumbnailRow(
+                  paths = photoPaths,
+                  maxCount = 4,
                     onTap = { index ->
                         selectedMediaIndex = index
                         selectedMediaType = CaptureType.PHOTO
@@ -649,22 +1104,8 @@ fun MaterialFormScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        if (scanCaptures.size >= 8) {
-                            showScanLimitDialog = true
-                        } else {
-                            launchScanCapture(
-                                context = context,
-                                jobNumber = jobNumber,
-                                materialDescription = materialDescription,
-                                scanLauncher = scanLauncher,
-                                onFallback = {
-                                    showScanFallbackDialog = true
-                                    activeCapture = CaptureType.SCAN
-                                    replaceIndex = null
-                                    replaceType = null
-                                }
-                            )
-                        }
+                        scanSessionActive = true
+                        launchScanSession()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -676,9 +1117,14 @@ fun MaterialFormScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                ThumbnailRow(
-                    paths = scanCaptures.map { it.previewPath },
-                    maxCount = 8,
+                Text(
+                    text = "Preferred: document scanner. Camera fallback still exports cleanly into the combined MTR PDF.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialGuardianColors.TextSecondary
+                )
+              ThumbnailRow(
+                  paths = scanCaptures.map { it.previewPath.ifBlank { it.sourcePath } },
+                  maxCount = 8,
                     onTap = { index ->
                         selectedMediaIndex = index
                         selectedMediaType = CaptureType.SCAN
@@ -726,18 +1172,23 @@ fun MaterialFormScreen(
                         comments = comments,
                         qcInitials = qcInitials,
                         qcDate = toEpochMillis(qcDate),
+                        qcSignaturePath = qcSignaturePath,
                         materialApproval = materialApproval,
                         qcManager = qcManager,
                         qcManagerInitials = qcManagerInitials,
                         qcManagerDate = toEpochMillis(qcManagerDate),
+                        qcManagerSignaturePath = qcManagerSignaturePath,
                         receivedAt = receivedAt,
                         offloadStatus = offloadStatus,
-                        pdfStatus = pdfStatus,
-                        pdfStoragePath = pdfStoragePath,
-                        photoPaths = photoPaths,
-                        scanPaths = scanCaptures.map { it.pdfPath }
-                    )
-                    result.onSuccess { showSaveSuccess = true }
+                      pdfStatus = pdfStatus,
+                      pdfStoragePath = pdfStoragePath,
+                      photoPaths = photoPaths,
+                      scanPaths = scanCaptures.map { encodeScanCapture(it) }
+                  )
+                    result.onSuccess {
+                        draftStore.clearImmediately(draftKey)
+                        showSaveSuccess = true
+                    }
                     result.onFailure { saveError = it.message ?: "Unable to save material." }
                 }
             },
@@ -755,9 +1206,15 @@ fun MaterialFormScreen(
     }
 
     if (showDiscardDialog) {
-        ConfirmDiscardDialog(
-            onConfirm = {
+        ConfirmExitDialog(
+            onKeepDraft = {
                 showDiscardDialog = false
+                draftStore.saveImmediately(draftKey, buildDraftSnapshot())
+                onNavigateBack()
+            },
+            onDeleteDraft = {
+                showDiscardDialog = false
+                draftStore.clearImmediately(draftKey)
                 onNavigateBack()
             },
             onDismiss = { showDiscardDialog = false }
@@ -768,7 +1225,7 @@ fun MaterialFormScreen(
         AlertDialog(
             onDismissRequest = { showSaveSuccess = false },
             title = { Text("Material saved") },
-            text = { Text("The receiving report has been saved.") },
+            text = { Text("This material entry was saved to the job.") },
             confirmButton = {
                 TextButton(onClick = {
                     showSaveSuccess = false
@@ -804,30 +1261,11 @@ fun MaterialFormScreen(
                 TextButton(onClick = {
                     if (targetIndex != null && targetType != null) {
                         if (targetType == CaptureType.PHOTO) {
-                            replaceIndex = targetIndex
-                            replaceType = targetType
-                            activeCapture = targetType
+                            photoSessionActive = false
+                            launchPhotoCapture(replaceAt = targetIndex)
                         } else {
-                            val capture = scanCaptures.getOrNull(targetIndex)
-                            if (capture != null) {
-                                File(capture.pdfPath).delete()
-                                if (capture.previewPath.isNotBlank()) {
-                                    File(capture.previewPath).delete()
-                                }
-                                scanCaptures.removeAt(targetIndex)
-                            }
-                            launchScanCapture(
-                                context = context,
-                                jobNumber = jobNumber,
-                                materialDescription = materialDescription,
-                                scanLauncher = scanLauncher,
-                                onFallback = {
-                                    showScanFallbackDialog = true
-                                    replaceIndex = targetIndex
-                                    replaceType = CaptureType.SCAN
-                                    activeCapture = CaptureType.SCAN
-                                }
-                            )
+                            scanSessionActive = false
+                            launchScanSession(replaceAt = targetIndex)
                         }
                     }
                     showMediaActionDialog = false
@@ -848,7 +1286,7 @@ fun MaterialFormScreen(
                             } else {
                                 val capture = scanCaptures.getOrNull(targetIndex)
                                 if (capture != null) {
-                                    File(capture.pdfPath).delete()
+                                    File(capture.sourcePath).delete()
                                     if (capture.previewPath.isNotBlank()) {
                                         File(capture.previewPath).delete()
                                     }
@@ -869,7 +1307,7 @@ fun MaterialFormScreen(
     }
 
     val captureType = activeCapture
-    if (captureType != null) {
+    if (captureType == CaptureType.SCAN) {
         val maxCount = if (captureType == CaptureType.PHOTO) 4 else 8
         val currentCount = if (captureType == CaptureType.PHOTO) photoPaths.size else scanCaptures.size
         val targetIndex = if (replaceType == captureType) replaceIndex else null
@@ -882,6 +1320,7 @@ fun MaterialFormScreen(
                 activeCapture = null
                 replaceIndex = null
                 replaceType = null
+                scanSessionActive = false
             },
             onCreateFile = { index: Int ->
                 buildMediaFile(
@@ -893,38 +1332,33 @@ fun MaterialFormScreen(
                 )
             },
             onCaptureAccepted = { file: File, _: Int ->
-                if (captureType == CaptureType.PHOTO) {
-                    if (targetIndex != null && targetIndex < photoPaths.size) {
-                        val oldPath = photoPaths[targetIndex]
-                        if (oldPath != file.absolutePath) {
-                            File(oldPath).delete()
-                        }
-                        photoPaths[targetIndex] = file.absolutePath
-                    } else if (photoPaths.size < maxCount) {
-                        photoPaths.add(file.absolutePath)
+                if (targetIndex != null && targetIndex < scanCaptures.size) {
+                    val existing = scanCaptures[targetIndex]
+                    if (existing.sourcePath != file.absolutePath) {
+                        File(existing.sourcePath).delete()
                     }
-                } else {
-                    if (targetIndex != null && targetIndex < scanCaptures.size) {
-                        val existing = scanCaptures[targetIndex]
-                        if (existing.pdfPath != file.absolutePath) {
-                            File(existing.pdfPath).delete()
-                        }
-                        scanCaptures[targetIndex] = ScanCapture(
-                            pdfPath = file.absolutePath,
+                    scanCaptures[targetIndex] = ScanCapture(
+                        sourcePath = file.absolutePath,
+                        previewPath = file.absolutePath
+                    )
+                } else if (scanCaptures.size < maxCount) {
+                    scanCaptures.add(
+                        ScanCapture(
+                            sourcePath = file.absolutePath,
                             previewPath = file.absolutePath
                         )
-                    } else if (scanCaptures.size < maxCount) {
-                        scanCaptures.add(
-                            ScanCapture(
-                                pdfPath = file.absolutePath,
-                                previewPath = file.absolutePath
-                            )
-                        )
-                    }
+                    )
                 }
-                activeCapture = null
                 replaceIndex = null
                 replaceType = null
+                val reachedLimit = scanCaptures.size >= maxCount
+                if (reachedLimit) {
+                    showScanLimitDialog = true
+                    scanSessionActive = false
+                    activeCapture = null
+                } else {
+                    activeCapture = if (scanSessionActive) CaptureType.SCAN else null
+                }
             }
         )
     }
@@ -946,7 +1380,7 @@ fun MaterialFormScreen(
         AlertDialog(
             onDismissRequest = { showScanFallbackDialog = false },
             title = { Text("Scanner unavailable") },
-            text = { Text("Using camera capture instead of the document scanner.") },
+            text = { Text("Using camera capture instead of the document scanner. These pages will still be bundled into the exported MTR PDF.") },
             confirmButton = {
                 TextButton(onClick = { showScanFallbackDialog = false }) {
                     Text("OK")
@@ -955,36 +1389,34 @@ fun MaterialFormScreen(
         )
     }
 
-}
-
-@Composable
-private fun HeaderBar(onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Surface(
-            modifier = Modifier
-                .size(60.dp)
-                .shadow(9.dp, CircleShape)
-                .clickable(onClick = onBack),
-            shape = CircleShape,
-            color = Color(0xFFE5E7EB)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
+    if (showSignatureDialog) {
+        SignatureDialog(
+            title = if (signatureTarget == SignatureTarget.QcInspector) {
+                "QC Inspector Signature"
+            } else {
+                "QC Manager Signature"
+            },
+            onSave = { bitmap ->
+                val targetFile = buildSignatureFile(
+                    context = context,
+                    jobNumber = jobNumber,
+                    materialDescription = materialDescription,
+                    target = signatureTarget
                 )
-            }
-        }
-
-        Image(
-            painter = painterResource(id = R.drawable.material_guardian_512),
-            contentDescription = "Material Guardian Logo",
-            modifier = Modifier
-                .size(72.dp)
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp)
+                val savedPath = saveSignatureBitmap(targetFile, bitmap)
+                if (signatureTarget == SignatureTarget.QcInspector) {
+                    deleteIfPresent(qcSignaturePath, savedPath)
+                    qcSignaturePath = savedPath
+                } else {
+                    deleteIfPresent(qcManagerSignaturePath, savedPath)
+                    qcManagerSignaturePath = savedPath
+                }
+                showSignatureDialog = false
+            },
+            onDismiss = { showSignatureDialog = false }
         )
     }
+
 }
 
 @Composable
@@ -1020,7 +1452,7 @@ private fun DropdownField(
     onValueChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var anchorWidth by remember { mutableStateOf(0) }
+    var anchorWidth by remember { mutableIntStateOf(0) }
 
     Box {
         Box(
@@ -1196,7 +1628,10 @@ private fun ThumbnailRow(
         repeat(maxCount) { index ->
             val path = paths.getOrNull(index)
             if (path != null) {
-                val bitmap = remember(path) { BitmapFactory.decodeFile(path) }
+                val isPdf = path.endsWith(".pdf", ignoreCase = true)
+                val bitmap = remember(path) {
+                    if (isPdf) null else BitmapFactory.decodeFile(path)
+                }
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
@@ -1213,8 +1648,15 @@ private fun ThumbnailRow(
                             .size(64.dp)
                             .background(Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
                             .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
-                            .clickable { onTap(index) }
-                    )
+                            .clickable { onTap(index) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isPdf) "PDF" else "File",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF4B5563)
+                        )
+                    }
                 }
             } else {
                 Box(
@@ -1229,19 +1671,231 @@ private fun ThumbnailRow(
 }
 
 @Composable
-private fun ConfirmDiscardDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun PhotoFilePreview(
+    path: String,
+    emptyLabel: String
+) {
+    val bitmap = remember(path) { BitmapFactory.decodeFile(path) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Preview",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = emptyLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialGuardianColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScanCapturePreview(capture: ScanCapture) {
+    if (capture.previewPath.isNotBlank()) {
+        PhotoFilePreview(
+            path = capture.previewPath,
+            emptyLabel = "Scan preview unavailable."
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "PDF scan ready to keep.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialGuardianColors.TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignatureField(
+    label: String,
+    signaturePath: String,
+    onSign: () -> Unit,
+    onClear: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialGuardianColors.TextSecondary
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = onSign,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(if (signaturePath.isBlank()) "Capture Signature" else "Re-sign")
+            }
+            if (signaturePath.isNotBlank()) {
+                TextButton(onClick = onClear) {
+                    Text("Clear")
+                }
+            }
+        }
+        if (signaturePath.isNotBlank()) {
+            SignaturePreview(signaturePath = signaturePath)
+        }
+    }
+}
+
+@Composable
+private fun SignaturePreview(signaturePath: String) {
+    val bitmap = remember(signaturePath) { BitmapFactory.decodeFile(signaturePath) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Signature preview",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                .background(Color.White, RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+@Composable
+private fun SignatureDialog(
+    title: String,
+    onSave: (android.graphics.Bitmap) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var strokes by remember { mutableStateOf(listOf<List<Offset>>()) }
+    var currentStroke by remember { mutableStateOf(listOf<Offset>()) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Discard changes?") },
-        text = { Text("You have unsaved changes. Discard them and go back?") },
+        onDismissRequest = { },
+        title = { Text(title) },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                    .background(Color.White, RoundedCornerShape(10.dp))
+                    .onGloballyPositioned { canvasSize = it.size }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset -> currentStroke = listOf(offset) },
+                            onDrag = { change, _ ->
+                                currentStroke = currentStroke + change.position
+                            },
+                            onDragEnd = {
+                                if (currentStroke.isNotEmpty()) {
+                                    strokes = strokes + listOf(currentStroke)
+                                    currentStroke = emptyList()
+                                }
+                            }
+                        )
+                    }
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                    val allStrokes = if (currentStroke.isNotEmpty()) strokes + listOf(currentStroke) else strokes
+                    allStrokes.forEach { stroke ->
+                        for (index in 0 until stroke.size - 1) {
+                            drawLine(
+                                color = Color.Black,
+                                start = stroke[index],
+                                end = stroke[index + 1],
+                                strokeWidth = 4f,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
+                    }
+                }
+            }
+        },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Discard")
+            TextButton(
+                onClick = {
+                    val finalized = if (currentStroke.isNotEmpty()) strokes + listOf(currentStroke) else strokes
+                    if (finalized.isEmpty()) return@TextButton
+                    onSave(renderSignatureBitmap(finalized, canvasSize))
+                }
+            ) {
+                Text("Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = { /* onDismiss() */ }) {
-                Text("Keep editing")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = {
+                    strokes = emptyList()
+                    currentStroke = emptyList()
+                }) {
+                    Text("Clear")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ConfirmExitDialog(
+    onKeepDraft: () -> Unit,
+    onDeleteDraft: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Exit receiving report?") },
+        text = {
+            Text("This report is autosaved as a draft. Leave now and keep the draft, or delete it.")
+        },
+        confirmButton = {
+            Button(
+                onClick = onKeepDraft,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialGuardianColors.Success,
+                    contentColor = MaterialGuardianColors.PrimaryButtonText
+                )
+            ) {
+                Text("Keep Draft")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = onDismiss) {
+                    Text("Keep Editing")
+                }
+                Button(
+                    onClick = onDeleteDraft,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialGuardianColors.DeleteButton,
+                        contentColor = MaterialGuardianColors.DeleteButtonText
+                    )
+                ) {
+                    Text("Delete Draft")
+                }
             }
         }
     )
@@ -1278,6 +1932,11 @@ private enum class CaptureType(val folder: String, val label: String) {
     SCAN("scans", "scan")
 }
 
+private enum class SignatureTarget(val fileLabel: String) {
+    QcInspector("qc"),
+    QcManager("qc_manager")
+}
+
 private fun buildScanPdfFile(
     context: android.content.Context,
     jobNumber: String,
@@ -1304,6 +1963,20 @@ private fun buildScanPreviewFile(
     val folder = File(context.filesDir, "job_media/$safeJob/scan_previews")
     folder.mkdirs()
     return File(folder, "${baseName}_scan_${index}.jpg")
+}
+
+private fun buildSignatureFile(
+    context: android.content.Context,
+    jobNumber: String,
+    materialDescription: String,
+    target: SignatureTarget
+): File {
+    val safeJob = sanitizeFileComponent(jobNumber)
+    val safeDesc = sanitizeFileComponent(materialDescription).ifBlank { "material" }
+    val baseName = safeDesc.take(24)
+    val folder = File(context.filesDir, "job_media/$safeJob/signatures")
+    folder.mkdirs()
+    return File(folder, "${baseName}_${target.fileLabel}_signature.png")
 }
 
 private fun launchScanCapture(
@@ -1346,17 +2019,65 @@ private fun findActivity(context: android.content.Context): android.app.Activity
 }
 
 private data class ScanCapture(
-    val pdfPath: String,
+    val sourcePath: String,
     val previewPath: String
 )
+
+private fun saveSignatureBitmap(file: File, bitmap: android.graphics.Bitmap): String {
+    file.outputStream().use { output ->
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)
+    }
+    return file.absolutePath
+}
+
+private fun renderSignatureBitmap(
+    strokes: List<List<Offset>>,
+    size: IntSize
+): android.graphics.Bitmap {
+    val scale = 3
+    val width = size.width.coerceAtLeast(1) * scale
+    val height = size.height.coerceAtLeast(1) * scale
+    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.WHITE)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK
+        strokeWidth = 12f
+        style = android.graphics.Paint.Style.STROKE
+        strokeJoin = android.graphics.Paint.Join.ROUND
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        isAntiAlias = true
+    }
+    strokes.forEach { stroke ->
+        for (index in 0 until stroke.size - 1) {
+            val start = stroke[index]
+            val end = stroke[index + 1]
+            canvas.drawLine(start.x * scale, start.y * scale, end.x * scale, end.y * scale, paint)
+        }
+    }
+    return bitmap
+}
+
+private fun deleteIfPresent(path: String, skipIfEquals: String = "") {
+    if (path.isBlank() || path == skipIfEquals) return
+    File(path).delete()
+}
+
+private fun encodeScanCapture(capture: ScanCapture): String {
+    return listOf(capture.sourcePath, capture.previewPath).joinToString("\t")
+}
 
 private fun decodePaths(value: String): List<String> {
     return value.split("|").filter { it.isNotBlank() }
 }
 
 private fun decodeScanCaptures(value: String): List<ScanCapture> {
-    return decodePaths(value).map { path ->
-        ScanCapture(pdfPath = path, previewPath = "")
+    return decodePaths(value).map { entry ->
+        val parts = entry.split("\t", limit = 2)
+        ScanCapture(
+            sourcePath = parts.firstOrNull().orEmpty(),
+            previewPath = parts.getOrNull(1).orEmpty()
+        )
     }
 }
 
@@ -1391,10 +2112,12 @@ private fun applyMaterialToState(
     onComments: (String) -> Unit,
     onQcInitials: (String) -> Unit,
     onQcDate: (LocalDate) -> Unit,
+    onQcSignaturePath: (String) -> Unit,
     onMaterialApproval: (String) -> Unit,
     onQcManager: (String) -> Unit,
     onQcManagerInitials: (String) -> Unit,
     onQcManagerDate: (LocalDate) -> Unit,
+    onQcManagerSignaturePath: (String) -> Unit,
     onReceivedAt: (Long) -> Unit,
     onOffloadStatus: (String) -> Unit,
     onPdfStatus: (String) -> Unit,
@@ -1429,10 +2152,12 @@ private fun applyMaterialToState(
     onComments(material.comments)
     onQcInitials(material.qcInitials)
     onQcDate(Instant.ofEpochMilli(material.qcDate).atZone(ZoneId.systemDefault()).toLocalDate())
+    onQcSignaturePath(material.qcSignaturePath)
     onMaterialApproval(material.materialApproval)
     onQcManager(material.qcManager)
     onQcManagerInitials(material.qcManagerInitials)
     onQcManagerDate(Instant.ofEpochMilli(material.qcManagerDate).atZone(ZoneId.systemDefault()).toLocalDate())
+    onQcManagerSignaturePath(material.qcManagerSignaturePath)
     onReceivedAt(material.receivedAt)
     onOffloadStatus(material.offloadStatus)
     onPdfStatus(material.pdfStatus)

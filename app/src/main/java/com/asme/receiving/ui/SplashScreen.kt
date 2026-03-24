@@ -9,13 +9,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,56 +26,54 @@ import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(onTimeout: () -> Unit) {
     val alpha = remember { Animatable(0f) }
+    var phase by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        alpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(1500)
-        )
-        delay(1500)
-        alpha.animateTo(
-            targetValue = 0f,
-            animationSpec = tween(1500)
-        )
+        phase = 0
+        alpha.snapTo(0f)
+        alpha.animateTo(1f, animationSpec = tween(700))
+        delay(900)
+        alpha.animateTo(0f, animationSpec = tween(500))
         delay(300)
+        phase = 1
+        alpha.snapTo(0f)
+        alpha.animateTo(1f, animationSpec = tween(900))
+        delay(1400)
+        alpha.animateTo(0f, animationSpec = tween(700))
+        delay(200)
         onTimeout()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(androidx.compose.ui.graphics.Color.White),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Updated to R.drawable and lowercase to match the file system
-            Image(
-                painter = painterResource(id = R.drawable.welders_helper_512),
-                contentDescription = "Welders Helper Logo",
-                modifier = Modifier
-                    .size(200.dp)
-                     .alpha(alpha.value)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
+        if (phase == 0) {
             Text(
-                text = stringResource(id = R.string.welders_helper_slogan),
+                text = "Brought to you by:",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 32.sp,
-                    lineHeight = 36.sp
+                    fontSize = 26.sp,
+                    lineHeight = 30.sp,
                 ),
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C2430),
-                letterSpacing = 0.5.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier
-                    .alpha(alpha.value)
-                    .padding(horizontal = 24.dp)
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialGuardianColors.Title,
+                modifier = Modifier.alpha(alpha.value),
             )
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.welders_helper_512),
+                    contentDescription = "Welders Helper Logo",
+                    modifier = Modifier
+                        .size(220.dp)
+                        .alpha(alpha.value),
+                )
+            }
         }
     }
 }

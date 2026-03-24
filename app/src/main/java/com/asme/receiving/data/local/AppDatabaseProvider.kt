@@ -14,7 +14,7 @@ object AppDatabaseProvider {
                 AppDatabase::class.java,
                 "material_guardian.db"
             )
-                .fallbackToDestructiveMigration()
+                .addMigrations(*AppDatabaseMigrations.ALL)
                 .build()
                 .also { instance = it }
         }

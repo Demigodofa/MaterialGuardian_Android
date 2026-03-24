@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.asme.receiving.ui.JobDetailScreen
 import com.asme.receiving.ui.JobsScreen
 import com.asme.receiving.ui.MaterialFormScreen
+import com.asme.receiving.ui.PrivacyPolicyScreen
 import com.asme.receiving.ui.SplashScreen
 import com.asme.receiving.ui.theme.MaterialGuardianTheme
 
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialGuardianTheme {
+            MaterialGuardianTheme(darkTheme = false, dynamicColor = false) {
                 AppNavigation()
             }
         }
@@ -43,7 +44,10 @@ fun AppNavigation() {
                 JobsScreen(
                     onJobClick = { jobNumber ->
                         navController.navigate("job_detail/$jobNumber")
-                    }
+                    },
+                    onPrivacyPolicyClick = {
+                        navController.navigate("privacy_policy")
+                    },
                 )
             }
 
@@ -81,6 +85,12 @@ fun AppNavigation() {
                     jobNumber = jobNumber,
                     materialId = materialId.ifBlank { null },
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("privacy_policy") {
+                PrivacyPolicyScreen(
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
         }

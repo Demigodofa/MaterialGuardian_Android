@@ -36,7 +36,7 @@ class ExportPdfContentTest {
 
     @Ignore("PDFBox requires Android resources; run as instrumented test.")
     @Test
-    fun receivingPdfContainsHeaderAndComments() = runBlocking {
+    fun materialPacketContainsReceivingReportContent() = runBlocking {
         val jobRepo = JobRepository()
         val materialRepo = MaterialRepository()
         jobRepo.upsert(JobItem(jobNumber = "JOB-77", description = "Test"))
@@ -48,9 +48,9 @@ class ExportPdfContentTest {
             )
         )
 
-        val exportPath = ExportService().exportJob("JOB-77")
-        val exportDir = File(exportPath, "receiving_reports")
-        val pdfFile = exportDir.listFiles()?.firstOrNull { it.name.endsWith("_receiving.pdf") }
+        val exportResult = ExportService().exportJob("JOB-77")
+        val exportDir = File(exportResult.internalPath, "material_packets")
+        val pdfFile = exportDir.listFiles()?.firstOrNull { it.name.endsWith("_packet.pdf") }
         requireNotNull(pdfFile)
 
         val text = PDDocument.load(pdfFile).use { doc ->

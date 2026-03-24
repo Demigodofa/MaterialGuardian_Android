@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path
+        name="job_media"
+        path="job_media/" />
+    <files-path
+        name="exports"
+        path="exports/" />
+</paths>

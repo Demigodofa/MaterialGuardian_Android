@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,7 +38,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +55,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun JobsScreen(
     onJobClick: (String) -> Unit,
+    onPrivacyPolicyClick: () -> Unit,
     viewModel: JobsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -66,13 +65,13 @@ fun JobsScreen(
     val scope = rememberCoroutineScope()
 
     Scaffold(
-        containerColor = Color(0xFFF1F3F6)
+        containerColor = MaterialGuardianColors.ScreenBackground
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF1F3F6))
+                .background(MaterialGuardianColors.ScreenBackground)
         ) {
             val screenHeight = LocalConfiguration.current.screenHeightDp.dp
             val logoSize = (screenHeight * 0.25f).coerceIn(96.dp, 160.dp)
@@ -99,8 +98,8 @@ fun JobsScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF22324A),
-                        contentColor = Color(0xFFF2F4F7)
+                        containerColor = MaterialGuardianColors.PrimaryButton,
+                        contentColor = MaterialGuardianColors.PrimaryButtonText
                     ),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 6.dp,
@@ -108,7 +107,7 @@ fun JobsScreen(
                     )
                 ) {
                     Text(
-                        text = "Create New Job",
+                        text = "Create Job",
                         style = TextStyle(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -118,17 +117,24 @@ fun JobsScreen(
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 HorizontalDivider(
-                    color = Color(0xFFCDD4DE),
+                    color = MaterialGuardianColors.Divider,
                     thickness = 1.dp,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = onPrivacyPolicyClick,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Privacy Policy")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
 
                 if (uiState.loading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             "Loading jobs...",
-                            color = Color(0xFF566173)
+                            color = MaterialGuardianColors.TextSecondary
                         )
                     }
                 } else if (uiState.items.isEmpty()) {
@@ -136,10 +142,17 @@ fun JobsScreen(
                         Text(
                             "No jobs yet. Create your first job above.",
                             textAlign = TextAlign.Center,
-                            color = Color(0xFF7B8794)
+                            color = MaterialGuardianColors.TextMuted
                         )
                     }
                 } else {
+                    Text(
+                        text = "Current Jobs",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialGuardianColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyColumn(
                         contentPadding = PaddingValues(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -193,7 +206,7 @@ fun JobsScreen(
                         jobToDelete = null
                     }
                 }) {
-                    Text("Delete", color = Color(0xFFB00020))
+                    Text("Delete", color = MaterialGuardianColors.DeleteButton)
                 }
             },
             dismissButton = {
@@ -207,13 +220,11 @@ fun JobsScreen(
 
 @Composable
 fun JobLinkRow(job: JobItem, onClick: () -> Unit, onDelete: () -> Unit) {
-    val linkColor = Color(0xFF1E3A5F)
-    val descriptionColor = Color(0xFF2E3A4B)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+        colors = CardDefaults.cardColors(containerColor = MaterialGuardianColors.CardBackground),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -227,14 +238,14 @@ fun JobLinkRow(job: JobItem, onClick: () -> Unit, onDelete: () -> Unit) {
                         text = "Job# ${job.jobNumber}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = linkColor,
+                        color = MaterialGuardianColors.Link,
                         textDecoration = TextDecoration.Underline
                     )
                     if (job.description.isNotBlank()) {
                         Text(
                             text = job.description,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = descriptionColor,
+                            color = MaterialGuardianColors.TextPrimary,
                             textDecoration = TextDecoration.Underline
                         )
                     }
@@ -246,14 +257,14 @@ fun JobLinkRow(job: JobItem, onClick: () -> Unit, onDelete: () -> Unit) {
                     Text(
                         text = exportStatus,
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (job.exportedAt == null) Color(0xFF9A3412) else Color(0xFF166534)
+                        color = if (job.exportedAt == null) MaterialGuardianColors.Warning else MaterialGuardianColors.Success
                     )
                 }
                 Button(
                     onClick = onDelete,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFB00020),
-                        contentColor = Color.White
+                        containerColor = MaterialGuardianColors.DeleteButton,
+                        contentColor = MaterialGuardianColors.DeleteButtonText
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
@@ -298,7 +309,7 @@ fun AddJobDialog(
                 if (!errorMessage.isNullOrBlank()) {
                     Text(
                         text = errorMessage,
-                        color = Color(0xFFB00020),
+                        color = MaterialGuardianColors.DeleteButton,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

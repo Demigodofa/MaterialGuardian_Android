@@ -1,29 +1,31 @@
 package com.asme.receiving.ui
 
+import android.app.DownloadManager
+import android.content.ClipData
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,19 +38,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.asme.receiving.data.MaterialItem
+import com.asme.receiving.data.export.ExportResult
 import com.asme.receiving.data.export.ExportService
+import com.asme.receiving.ui.components.MaterialGuardianHeader
+import java.io.File
+import java.io.FileInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,6 +66,7 @@ fun JobDetailScreen(
     onJobRenamed: (String) -> Unit,
     viewModel: JobDetailViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uiStateFlow = remember(jobNumber) { viewModel.observe(jobNumber) }
     val uiState by uiStateFlow.collectAsState()
@@ -69,7 +76,7 @@ fun JobDetailScreen(
     var showEditJobNumber by remember { mutableStateOf(false) }
     var showExportConfirm by remember { mutableStateOf(false) }
     var exportError by remember { mutableStateOf<String?>(null) }
-    var exportSuccess by remember { mutableStateOf<String?>(null) }
+    var exportSuccess by remember { mutableStateOf<ExportResult?>(null) }
     var descriptionDraft by remember { mutableStateOf("") }
     var jobNumberDraft by remember { mutableStateOf("") }
 
@@ -88,11 +95,12 @@ fun JobDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF6F7F9))
+            .background(MaterialGuardianColors.FormBackground)
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 16.dp)
     ) {
-        JobHeader(onBack = onNavigateBack)
+        MaterialGuardianHeader(onBack = onNavigateBack)
 
         Spacer(modifier = Modifier.height(14.dp))
 
@@ -102,8 +110,7 @@ fun JobDetailScreen(
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp,
-            color = Color(0xFF4B5563)
-            ,
+            color = MaterialGuardianColors.SectionTitle,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -120,7 +127,7 @@ fun JobDetailScreen(
                     text = "Job# ${job.jobNumber}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1E3A5F),
+                    color = MaterialGuardianColors.Link,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable { showEditJobNumber = true }
                 )
@@ -128,7 +135,7 @@ fun JobDetailScreen(
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (job.exportedAt == null) Color(0xFF9A3412) else Color(0xFF166534)
+                    color = if (job.exportedAt == null) MaterialGuardianColors.Warning else MaterialGuardianColors.Success
                 )
             }
 
@@ -136,7 +143,7 @@ fun JobDetailScreen(
                 Text(
                     text = job.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF2E3A4B),
+                    color = MaterialGuardianColors.TextPrimary,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier
                         .padding(top = 6.dp)
@@ -146,7 +153,7 @@ fun JobDetailScreen(
                 Text(
                     text = "Add job description",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF1E3A5F),
+                    color = MaterialGuardianColors.Link,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier
                         .padding(top = 6.dp)
@@ -165,8 +172,8 @@ fun JobDetailScreen(
                 .height(50.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF22324A),
-                contentColor = Color(0xFFF2F4F7)
+                containerColor = MaterialGuardianColors.PrimaryButton,
+                contentColor = MaterialGuardianColors.PrimaryButtonText
             )
         ) {
             Text("Add Receiving Report")
@@ -177,7 +184,7 @@ fun JobDetailScreen(
         Text(
             text = "Materials Received",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF1C2430)
+            color = MaterialGuardianColors.Title
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -204,11 +211,76 @@ fun JobDetailScreen(
                 .height(52.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1C3F5B),
-                contentColor = Color.White
+                containerColor = MaterialGuardianColors.ExportButton,
+                contentColor = MaterialGuardianColors.ExportButtonText
             )
         ) {
             Text("Export Job")
+        }
+
+        if (job?.exportPath?.isNotBlank() == true) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Latest export folder",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialGuardianColors.TextSecondary,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Button(
+                onClick = {
+                    val opened = openExportFolder(context, job.exportPath)
+                    if (!opened) {
+                        exportError = "Could not open the export folder on this device."
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .fillMaxWidth(0.78f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialGuardianColors.EditButton,
+                    contentColor = MaterialGuardianColors.EditButtonText
+                )
+            ) {
+                Text("Open Export Folder")
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = job.exportPath,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialGuardianColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val shared = shareLatestExport(context, job.exportPath)
+                    if (!shared) {
+                        exportError = "Could not share the latest exported packet PDFs on this device."
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .fillMaxWidth(0.78f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialGuardianColors.PrimaryButton,
+                    contentColor = MaterialGuardianColors.PrimaryButtonText
+                )
+            ) {
+                Text("Share Latest Export")
+            }
         }
     }
 
@@ -285,9 +357,9 @@ fun JobDetailScreen(
                 TextButton(onClick = {
                     scope.launch {
                         try {
-                            val exportPath = ExportService().exportJob(job.jobNumber)
-                            viewModel.markExported(job.jobNumber, exportPath)
-                            exportSuccess = exportPath
+                            val exportResult = ExportService().exportJob(job.jobNumber)
+                            viewModel.markExported(job.jobNumber, exportResult.downloadsFolder)
+                            exportSuccess = exportResult
                         } catch (e: Exception) {
                             exportError = e.message ?: "Export failed."
                         }
@@ -318,58 +390,165 @@ fun JobDetailScreen(
         )
     }
 
-    if (exportSuccess != null) {
+    exportSuccess?.let { result ->
         AlertDialog(
             onDismissRequest = { exportSuccess = null },
             title = { Text("Export complete") },
-            text = { Text("Saved to: ${exportSuccess ?: ""}") },
+            text = { Text(buildExportSuccessMessage(result)) },
             confirmButton = {
+                TextButton(onClick = {
+                    val opened = openExportFolder(context, result.downloadsFolder)
+                    if (!opened) {
+                        exportError = "Could not open the export folder on this device."
+                    }
+                }) {
+                    Text("Open Folder")
+                }
+            },
+            dismissButton = {
                 TextButton(onClick = { exportSuccess = null }) {
-                    Text("OK")
+                    Text("Done")
                 }
             }
         )
     }
 }
 
-@Composable
-private fun JobHeader(onBack: () -> Unit) {
-    val context = LocalContext.current
-    val logoResId = remember(context) {
-        context.resources.getIdentifier(
-            "material_guardian_512",
-            "drawable",
-            context.packageName
-        )
-    }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Surface(
-            modifier = Modifier
-                .size(60.dp)
-                .shadow(9.dp, CircleShape)
-                .clickable(onClick = onBack),
-            shape = CircleShape,
-            color = Color(0xFFE5E7EB)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                androidx.compose.material3.Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
-            }
+private fun buildExportSuccessMessage(result: ExportResult): String {
+    val parts = buildList {
+        add("${result.materialPacketCount} material packet PDF" + if (result.materialPacketCount == 1) "" else "s")
+        if (result.scanSourceCount > 0) {
+            add("${result.scanSourceCount} scan source" + if (result.scanSourceCount == 1) "" else "s")
         }
-
-        androidx.compose.foundation.Image(
-            painter = painterResource(
-                id = if (logoResId != 0) logoResId else android.R.drawable.sym_def_app_icon
-            ),
-            contentDescription = "Material Guardian Logo",
-            modifier = Modifier
-                .size(72.dp)
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp)
-        )
+        if (result.photoCount > 0) {
+            add("${result.photoCount} photo" + if (result.photoCount == 1) "" else "s")
+        }
     }
+    return "Exported ${parts.joinToString(", ")}.\n\nPhone-accessible folder:\n${result.downloadsFolder}"
+}
+
+private fun openExportFolder(context: Context, exportPath: String): Boolean {
+    val normalizedPath = exportPath.trim()
+        .replace('\\', '/')
+        .trim('/')
+    if (normalizedPath.isBlank()) {
+        return false
+    }
+
+    val relativeToDownloads = normalizedPath
+        .removePrefix("Downloads/")
+        .removePrefix("Download/")
+        .trim('/')
+
+    val folderDocumentId = buildDownloadsDocumentId(relativeToDownloads)
+    val folderUri = DocumentsContract.buildDocumentUri(
+        "com.android.externalstorage.documents",
+        folderDocumentId
+    )
+
+    val exactFolderIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(folderUri, DocumentsContract.Document.MIME_TYPE_DIR)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+        }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    if (launchIfSupported(context, exactFolderIntent)) {
+        return true
+    }
+
+    val pickerIntent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+        }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    if (launchIfSupported(context, pickerIntent)) {
+        return true
+    }
+
+    val downloadsIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return launchIfSupported(context, downloadsIntent)
+}
+
+private fun buildDownloadsDocumentId(relativeToDownloads: String): String {
+    val cleanedRelativePath = relativeToDownloads.trim('/')
+    return if (cleanedRelativePath.isBlank()) {
+        "primary:Download"
+    } else {
+        "primary:Download/$cleanedRelativePath"
+    }
+}
+
+private fun launchIfSupported(context: Context, intent: Intent): Boolean {
+    return runCatching {
+        context.startActivity(intent)
+        true
+    }.getOrDefault(false)
+}
+
+private fun shareLatestExport(context: Context, exportPath: String): Boolean {
+    val zipFile = latestExportShareBundle(context, exportPath) ?: return false
+    val authority = "${context.packageName}.fileprovider"
+    val uri = FileProvider.getUriForFile(context, authority, zipFile)
+
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/zip"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newUri(context.contentResolver, zipFile.name, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    val chooserIntent = Intent.createChooser(intent, "Share latest export bundle").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return launchIfSupported(context, chooserIntent)
+}
+
+private fun latestExportShareBundle(context: Context, exportPath: String): File? {
+    val exportRoot = latestInternalExportRoot(context, exportPath) ?: return null
+    val packetFiles = exportRoot.resolve("material_packets")
+        .listFiles()
+        ?.filter { it.isFile && it.extension.equals("pdf", ignoreCase = true) }
+        ?.sortedBy { it.name }
+        .orEmpty()
+    if (packetFiles.isEmpty()) {
+        return null
+    }
+
+    val bundleDir = File(exportRoot, "share_bundle").also { it.mkdirs() }
+    val bundleName = "${exportRoot.name}_latest_export.zip"
+    val zipFile = File(bundleDir, bundleName)
+    if (zipFile.exists()) {
+        zipFile.delete()
+    }
+
+    ZipOutputStream(zipFile.outputStream().buffered()).use { zipStream ->
+        packetFiles.forEach { packetFile ->
+            zipStream.putNextEntry(ZipEntry(packetFile.name))
+            FileInputStream(packetFile).use { input ->
+                input.copyTo(zipStream)
+            }
+            zipStream.closeEntry()
+        }
+    }
+
+    return zipFile
+}
+
+private fun latestInternalExportRoot(context: Context, exportPath: String): File? {
+    val exportSegment = exportPath.trim()
+        .replace('\\', '/')
+        .trim('/')
+        .substringAfterLast('/', "")
+    if (exportSegment.isBlank()) {
+        return null
+    }
+
+    val exportRoot = File(context.filesDir, "exports/$exportSegment")
+    return exportRoot.takeIf { it.exists() }
 }
 
 @Composable
@@ -378,19 +557,19 @@ private fun MaterialSummaryRow(material: MaterialItem, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(Color.White, RoundedCornerShape(10.dp))
+            .background(MaterialGuardianColors.CardBackground, RoundedCornerShape(10.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = material.description.ifBlank { "Material" },
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF1F2937)
+            color = MaterialGuardianColors.TextPrimary
         )
         Text(
             text = material.quantity.ifBlank { "-" },
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF475569)
+            color = MaterialGuardianColors.TextSecondary
         )
     }
 }

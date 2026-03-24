@@ -2,6 +2,7 @@ package com.asme.receiving.ui
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,11 +41,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.asme.receiving.ui.MaterialGuardianColors
 import java.io.File
 import java.util.concurrent.Executor
+
+private const val CAMERA_TAG = "MaterialGuardianCamera"
 
 @Composable
 fun CameraCaptureOverlay(
@@ -53,7 +58,7 @@ fun CameraCaptureOverlay(
     captureIndex: Int?,
     onClose: () -> Unit,
     onCreateFile: (index: Int) -> File,
-    onCaptureAccepted: (file: File, index: Int) -> Unit
+    onCaptureAccepted: (file: File, index: Int) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -62,10 +67,12 @@ fun CameraCaptureOverlay(
     var pendingFile by remember { mutableStateOf<File?>(null) }
     var pendingIndex by remember { mutableStateOf<Int?>(null) }
     var capturedPath by remember { mutableStateOf<String?>(null) }
+    var cameraReady by remember { mutableStateOf(false) }
+    var cameraError by remember { mutableStateOf<String?>(null) }
     val imageCapture = remember { ImageCapture.Builder().build() }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
+        contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         hasPermission = granted
     }
@@ -80,10 +87,20 @@ fun CameraCaptureOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.Black),
     ) {
         if (!hasPermission) {
             PermissionPrompt(onClose = onClose)
+            return
+        }
+
+        val errorMessage = cameraError
+        if (errorMessage != null) {
+            CameraErrorPrompt(
+                message = errorMessage,
+                onClose = onClose,
+                onDismiss = { cameraError = null }
+            )
             return
         }
 
@@ -92,7 +109,15 @@ fun CameraCaptureOverlay(
                 modifier = Modifier.fillMaxSize(),
                 imageCapture = imageCapture,
                 lifecycleOwner = lifecycleOwner,
-                context = context
+                context = context,
+                onReady = {
+                    cameraReady = true
+                    cameraError = null
+                },
+                onError = { message ->
+                    cameraReady = false
+                    cameraError = message
+                },
             )
         } else {
             val bitmap = BitmapFactory.decodeFile(capturedPath)
@@ -100,7 +125,7 @@ fun CameraCaptureOverlay(
                 Image(
                     bitmap = bitmap.asImageBitmap(),
                     contentDescription = "Captured preview",
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -112,15 +137,27 @@ fun CameraCaptureOverlay(
             title = title,
             counter = formatCounter(targetIndex, maxCount),
             showShutter = capturedPath == null,
+            canCapture = canCapture && cameraReady,
             onClose = onClose,
             onShutter = {
-                if (!canCapture) return@CaptureOverlayControls
+                if (!canCapture || !cameraReady) return@CaptureOverlayControls
                 val file = onCreateFile(targetIndex)
                 pendingFile = file
                 pendingIndex = targetIndex
-                takePicture(cameraExecutor, imageCapture, file) { path ->
-                    capturedPath = path
-                }
+                takePicture(
+                    executor = cameraExecutor,
+                    imageCapture = imageCapture,
+                    file = file,
+                    onSaved = { path ->
+                        capturedPath = path
+                    },
+                    onError = { message ->
+                        pendingFile?.delete()
+                        pendingFile = null
+                        pendingIndex = null
+                        cameraError = message
+                    }
+                )
             },
             onAccept = {
                 val file = pendingFile
@@ -132,8 +169,10 @@ fun CameraCaptureOverlay(
             },
             onRetake = {
                 pendingFile?.delete()
+                pendingFile = null
+                pendingIndex = null
                 capturedPath = null
-            }
+            },
         )
     }
 }
@@ -144,20 +183,59 @@ private fun PermissionPrompt(onClose: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.8f)),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(24.dp)
+            modifier = Modifier.padding(24.dp),
         ) {
             Text(
                 text = "Camera permission is required.",
                 color = Color.White,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
             )
             Button(onClick = onClose) {
                 Text("Close")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CameraErrorPrompt(
+    message: String,
+    onClose: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.86f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(24.dp),
+        ) {
+            Text(
+                text = "Camera unavailable",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = message,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Retry")
+                }
+                Button(onClick = onClose) {
+                    Text("Close")
+                }
             }
         }
     }
@@ -168,37 +246,50 @@ private fun CameraPreview(
     modifier: Modifier,
     imageCapture: ImageCapture,
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
-    context: Context
+    context: Context,
+    onReady: () -> Unit,
+    onError: (String) -> Unit,
 ) {
-    val previewView = remember { PreviewView(context) }
+    val previewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(lifecycleOwner, context, imageCapture) {
         cameraProviderFuture.addListener(
             {
-                val cameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
                 try {
+                    val cameraProvider = cameraProviderFuture.get()
+                    val preview = Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
-                        imageCapture
+                        imageCapture,
                     )
-                } catch (_: Exception) {
-                    // No-op for now
+                    onReady()
+                } catch (exception: Exception) {
+                    Log.e(CAMERA_TAG, "Failed to bind camera preview", exception)
+                    onError("The camera could not be started on this device right now.")
                 }
             },
-            ContextCompat.getMainExecutor(context)
+            ContextCompat.getMainExecutor(context),
         )
+        onDispose {
+            runCatching {
+                cameraProviderFuture.get().unbindAll()
+            }
+        }
     }
 
     androidx.compose.ui.viewinterop.AndroidView(
         modifier = modifier,
-        factory = { previewView }
+        factory = { previewView },
     )
 }
 
@@ -207,18 +298,20 @@ private fun CaptureOverlayControls(
     title: String,
     counter: String,
     showShutter: Boolean,
+    canCapture: Boolean,
     onClose: () -> Unit,
     onShutter: () -> Unit,
     onAccept: () -> Unit,
-    onRetake: () -> Unit
+    onRetake: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(onClick = onClose) {
                 Text("Exit")
@@ -234,22 +327,25 @@ private fun CaptureOverlayControls(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp)
+                    .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
             ) {
-                OutlinedButton(
+                Button(
                     onClick = onShutter,
                     shape = CircleShape,
-                    modifier = Modifier.size(82.dp)
+                    modifier = Modifier.size(92.dp),
+                    enabled = canCapture,
                 ) {
-                    Text(text = "●", color = Color.White)
+                    Text(text = "Capture")
                 }
             }
         } else {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 OutlinedButton(onClick = onRetake, modifier = Modifier.weight(1f)) {
                     Text("Retake")
@@ -266,7 +362,8 @@ private fun takePicture(
     executor: Executor,
     imageCapture: ImageCapture,
     file: File,
-    onSaved: (String) -> Unit
+    onSaved: (String) -> Unit,
+    onError: (String) -> Unit,
 ) {
     val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
     imageCapture.takePicture(
@@ -278,16 +375,17 @@ private fun takePicture(
             }
 
             override fun onError(exception: ImageCaptureException) {
-                // No-op for now
+                Log.e(CAMERA_TAG, "Failed to capture photo", exception)
+                onError("The photo could not be captured. Please try again.")
             }
-        }
+        },
     )
 }
 
 private fun isCameraPermissionGranted(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(
         context,
-        android.Manifest.permission.CAMERA
+        android.Manifest.permission.CAMERA,
     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 }
 

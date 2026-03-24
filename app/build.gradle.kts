@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,20 +7,52 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val releaseSigningProperties = Properties().apply {
+    val propertiesFile = rootProject.file("release-signing.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
+fun releaseSigningValue(name: String): String? {
+    return System.getenv("MG_$name")?.takeIf { it.isNotBlank() }
+        ?: releaseSigningProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+}
+
+val releaseStoreFile = releaseSigningValue("STORE_FILE")?.let { rootProject.file(it) }
+val releaseStorePassword = releaseSigningValue("STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("KEY_PASSWORD")
+val hasReleaseSigning = releaseStoreFile?.exists() == true &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.asme.receiving"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.asme.receiving"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("releaseUpload") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
@@ -29,6 +63,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("releaseUpload")
+            }
         }
     }
     compileOptions {
