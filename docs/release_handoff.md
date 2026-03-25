@@ -17,6 +17,15 @@ Verified:
 Current release bundle:
 
 - `app/build/outputs/bundle/release/app-release.aab`
+- Current Android version target after export fixes: `versionName 1.0.2`, `versionCode 3`
+
+## Versioning convention
+
+- App version labels use `major.minor.patch` with no `v` prefix.
+- Android Play builds use an incrementing integer `versionCode`.
+- Play release names use `major.minor.patch (build) - summary`.
+- Internal-track example: `1.0.2 (3) Internal - Export Fixes`
+- Production example: `1.0.2 (3) - Export Fixes`
 
 ## What changed in this hardening pass
 

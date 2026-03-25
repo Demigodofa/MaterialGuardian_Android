@@ -74,6 +74,7 @@ Last updated: 2026-03-25
 - Local data is intentionally kept on-device; cloud sync/export is deferred
 - Export/share behavior was adjusted to work better with real-world share targets like SharePoint
 - Release signing and Play setup exist for Android only and should not be copied into iOS signing
+- Version nomenclature should stay aligned across platforms: use `major.minor.patch` with no `v` prefix for the user-facing app version, keep Android `versionCode` and iOS build number as increasing integers, and use operational release labels like `1.0.2 (3) - Export Fixes` or `1.0.2 (3) Internal - Export Fixes`
 
 ## Local-only files and folders
 

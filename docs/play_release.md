@@ -27,3 +27,11 @@ keytool -genkeypair -v -keystore keystore\material-guardian-upload.jks -alias up
 ```
 
 5. Upload `app/build/outputs/bundle/release/app-release.aab` to Play Console and enroll in Play App Signing.
+
+Versioning and naming standard:
+
+- `versionName` should use `major.minor.patch` with no `v` prefix, for example `1.0.2`.
+- `versionCode` should increase on every Play-uploaded Android bundle.
+- Play Console release names should use `major.minor.patch (build) - summary`, for example `1.0.2 (3) - Export Fixes`.
+- For internal-only releases, you may include the track for clarity: `1.0.2 (3) Internal - Export Fixes`.
+- Keep release notes short and tester-focused; keep release names short and operational.

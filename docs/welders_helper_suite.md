@@ -85,6 +85,15 @@ Each app may solve a different workflow, but the user should immediately recogni
   - scans / PDFs
   - generated reports
 
+### Release and Version Naming
+
+- Use one versioning scheme across Welders Helper apps and platforms.
+- Public app version should use `major.minor.patch` with no `v` prefix, for example `1.0.2`.
+- Android `versionCode` and iOS build number should be monotonically increasing integers and should stay aligned when practical for the same shipped milestone.
+- Play Console / TestFlight / internal release labels should use the pattern `major.minor.patch (build) - summary`, for example `1.0.2 (3) - Export Fixes`.
+- Add the track name only when it helps humans distinguish test-only releases, for example `1.0.2 (3) Internal - Export Fixes`.
+- Keep the summary short, plain, and professional. Avoid slang, dates unless needed, and the `v` prefix.
+
 ### Media Capture
 
 - Photo capture and document scanning are separate workflows and must stay separate in the data model and UI.
