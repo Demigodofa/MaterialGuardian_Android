@@ -7,7 +7,7 @@ Last updated: 2026-03-25
 - Repo root: `C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android`
 - Remote: `https://github.com/Demigodofa/MaterialGuardian_Android.git`
 - Branch: `main`
-- Current synced commit: `a2ac042` `Harden release flow and add iOS handoff folder`
+- Current synced commit: `900adc1` `Add iOS Codex handoff note`
 
 ## Current state
 
@@ -16,16 +16,20 @@ Last updated: 2026-03-25
 - The repo is clean and `main` is tracking `origin/main`.
 - The next Codex session should treat Android as the reference implementation and build the Apple version under `ios/`.
 - If a newer clone, branch, or Mac working copy already contains iOS files, preserve that work and extend it instead of replacing it with a fresh scaffold.
+- This Windows clone currently only has the handoff files under `ios/`; if a newer Mac working copy has unpushed iOS files, pull and push carefully there so an older tree does not overwrite newer Apple work.
 
 ## Read first
 
 1. `AGENTS.md`
-2. `README.md`
-3. `docs/release_handoff.md`
-4. `docs/play_release.md`
-5. `docs/google_play_submission.md`
-6. `docs/welders_helper_suite.md`
-7. `www/privacy-policy.html`
+2. `C:\Users\KevinPenfield\.codex\skills\kevin-codex\SKILL.md`
+3. `C:\Users\KevinPenfield\.codex\skills\kevin-codex\references\foundation.md`
+4. `C:\Users\KevinPenfield\.codex\skills\kevin-codex\references\web-apps.md`
+5. `README.md`
+6. `docs/release_handoff.md`
+7. `docs/play_release.md`
+8. `docs/google_play_submission.md`
+9. `docs/welders_helper_suite.md`
+10. `www/privacy-policy.html`
 
 ## Where the important files are
 
@@ -90,4 +94,6 @@ These help on Kevin's PC but should not drive iOS architecture:
 
 Ask Codex to:
 
-`Open C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android and read ios/Codex Handoff for Material Guardian.md first. Use the Android app under app/ as the behavior reference, keep Apple work under ios/, and if there is already iOS work in this clone, branch, or another newer Mac copy, preserve and extend it instead of replacing it. Do not touch Android signing files.`
+`Open C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android and read ios/Codex Handoff for Material Guardian.md first. Use the Android app under app/ as the behavior reference, keep new Apple work under ios/, and help plan or build an iOS version of Material Guardian without touching Android signing files.`
+
+Also tell Codex that if there is already iOS work in this clone, branch, or another newer Mac copy, it should preserve and extend that work instead of replacing it with a fresh scaffold. Have it also check `C:\Users\KevinPenfield\.codex\skills\kevin-codex\` on this PC to pick up Kevin-machine workflow context and see whether any durable guidance or legacy workflow notes should be updated as the iOS work progresses.
