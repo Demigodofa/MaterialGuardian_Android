@@ -3,6 +3,10 @@ package com.asme.receiving.data.export
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.os.Environment
 import android.provider.MediaStore
 import android.os.Build
@@ -16,10 +20,14 @@ import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
+import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.text.Normalizer
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.first
@@ -443,9 +451,11 @@ class ExportService(
     }
 
     private fun drawText(stream: PDPageContentStream, x: Float, y: Float, text: String) {
+        val normalizedText = normalizePdfSingleLine(text)
+        if (normalizedText.isBlank()) return
         stream.beginText()
         stream.newLineAtOffset(x, y)
-        stream.showText(text)
+        stream.showText(normalizedText)
         stream.endText()
     }
 
@@ -456,23 +466,32 @@ class ExportService(
         width: Float,
         text: String
     ) {
-        if (text.isBlank()) return
-        val words = text.split(" ")
-        var line = ""
         var offsetY = 0f
-        words.forEach { word ->
-            val test = if (line.isBlank()) word else "$line $word"
-            val testWidth = PDType1Font.HELVETICA.getStringWidth(test) / 1000f * 10f
-            if (testWidth > width && line.isNotBlank()) {
+        val paragraphs = normalizePdfMultiline(text).split('\n')
+        paragraphs.forEach { paragraph ->
+            val words = paragraph.split(Regex("\\s+")).filter { it.isNotBlank() }
+            if (words.isEmpty()) {
+                offsetY += 12f
+                return@forEach
+            }
+
+            var line = ""
+            words.forEach { word ->
+                val test = if (line.isBlank()) word else "$line $word"
+                val testWidth = measureBodyTextWidth(test)
+                if (testWidth > width && line.isNotBlank()) {
+                    drawText(stream, x, y - offsetY, line)
+                    offsetY += 12f
+                    line = word
+                } else {
+                    line = test
+                }
+            }
+
+            if (line.isNotBlank()) {
                 drawText(stream, x, y - offsetY, line)
                 offsetY += 12f
-                line = word
-            } else {
-                line = test
             }
-        }
-        if (line.isNotBlank()) {
-            drawText(stream, x, y - offsetY, line)
         }
     }
 
@@ -509,10 +528,7 @@ class ExportService(
                     document.importPage(page)
                 }
             } else {
-                val image = com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFile(
-                    file.absolutePath,
-                    document
-                )
+                val image = createPdfImage(document, file)
                 val page = PDPage(PDRectangle.LETTER)
                 document.addPage(page)
                 PDPageContentStream(document, page).use { stream ->
@@ -561,10 +577,7 @@ class ExportService(
                     val cellY = PDRectangle.LETTER.height - margin - headerGap - (row * (cellHeight + gutter)) - cellHeight
                     drawRect(stream, cellX, cellY, cellWidth, cellHeight)
 
-                    val image = com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFile(
-                        file.absolutePath,
-                        document
-                    )
+                    val image = createPdfImage(document, file)
                     val scale = minOf(cellWidth / image.width, cellHeight / image.height)
                     val drawWidth = image.width * scale
                     val drawHeight = image.height * scale
@@ -658,6 +671,137 @@ class ExportService(
             name.endsWith(".jpg", true) || name.endsWith(".jpeg", true) -> "image/jpeg"
             name.endsWith(".txt", true) -> "text/plain"
             else -> "application/octet-stream"
+        }
+    }
+
+    private fun measureBodyTextWidth(text: String): Float {
+        val normalized = normalizePdfSingleLine(text)
+        if (normalized.isBlank()) return 0f
+        return PDType1Font.HELVETICA.getStringWidth(normalized) / 1000f * 10f
+    }
+
+    private fun normalizePdfSingleLine(text: String): String {
+        return normalizePdfText(text, preserveLineBreaks = false)
+    }
+
+    private fun normalizePdfMultiline(text: String): String {
+        return normalizePdfText(text, preserveLineBreaks = true)
+    }
+
+    private fun normalizePdfText(text: String, preserveLineBreaks: Boolean): String {
+        if (text.isBlank()) return ""
+        val normalized = Normalizer.normalize(text, Normalizer.Form.NFKD)
+        val builder = StringBuilder(normalized.length)
+        var previousWasSpace = false
+        var previousWasNewline = false
+
+        normalized.forEach { char ->
+            val mapped = when (char) {
+                '\u2018', '\u2019', '\u2032' -> '\''
+                '\u201C', '\u201D', '\u2033' -> '"'
+                '\u2013', '\u2014', '\u2212' -> '-'
+                '\u2022' -> '*'
+                '\u00A0', '\t' -> ' '
+                else -> char
+            }
+
+            when {
+                Character.getType(mapped) == Character.NON_SPACING_MARK.toInt() -> Unit
+                mapped == '\r' || mapped == '\n' -> {
+                    if (preserveLineBreaks && !previousWasNewline) {
+                        builder.append('\n')
+                        previousWasNewline = true
+                        previousWasSpace = false
+                    } else if (!preserveLineBreaks && !previousWasSpace) {
+                        builder.append(' ')
+                        previousWasSpace = true
+                    }
+                }
+                Character.isWhitespace(mapped) -> {
+                    if (!previousWasSpace && !previousWasNewline) {
+                        builder.append(' ')
+                        previousWasSpace = true
+                    }
+                }
+                Character.isISOControl(mapped) -> Unit
+                mapped.code in 32..126 || mapped.code in 160..255 -> {
+                    builder.append(mapped)
+                    previousWasSpace = false
+                    previousWasNewline = false
+                }
+                else -> {
+                    builder.append('?')
+                    previousWasSpace = false
+                    previousWasNewline = false
+                }
+            }
+        }
+
+        return if (preserveLineBreaks) {
+            builder.toString()
+                .lines()
+                .joinToString("\n") { it.trimEnd() }
+                .trim()
+        } else {
+            builder.toString().trim()
+        }
+    }
+
+    private fun createPdfImage(document: PDDocument, file: File): PDImageXObject {
+        val extension = file.extension.lowercase(Locale.US)
+        if (extension != "jpg" && extension != "jpeg") {
+            return PDImageXObject.createFromFile(file.absolutePath, document)
+        }
+
+        val bitmap = decodeBitmapForPdf(file) ?: return PDImageXObject.createFromFile(file.absolutePath, document)
+        return try {
+            ByteArrayOutputStream().use { output ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+                JPEGFactory.createFromByteArray(document, output.toByteArray())
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    private fun decodeBitmapForPdf(file: File): Bitmap? {
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+        val orientation = runCatching {
+            ExifInterface(file.absolutePath).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+        val matrix = orientationMatrix(orientation) ?: return bitmap
+        val rotatedBitmap = runCatching {
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        }.getOrNull()
+
+        return if (rotatedBitmap != null) {
+            bitmap.recycle()
+            rotatedBitmap
+        } else {
+            bitmap
+        }
+    }
+
+    private fun orientationMatrix(orientation: Int): Matrix? {
+        return when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> Matrix().apply { postRotate(90f) }
+            ExifInterface.ORIENTATION_ROTATE_180 -> Matrix().apply { postRotate(180f) }
+            ExifInterface.ORIENTATION_ROTATE_270 -> Matrix().apply { postRotate(270f) }
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> Matrix().apply { preScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> Matrix().apply { preScale(1f, -1f) }
+            ExifInterface.ORIENTATION_TRANSPOSE -> Matrix().apply {
+                preScale(-1f, 1f)
+                postRotate(270f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> Matrix().apply {
+                preScale(-1f, 1f)
+                postRotate(90f)
+            }
+            else -> null
         }
     }
 
