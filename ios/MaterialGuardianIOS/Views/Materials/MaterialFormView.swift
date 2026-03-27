@@ -9,7 +9,6 @@ struct MaterialFormView: View {
     @State private var hasLoadedDraft = false
     @State private var didSave = false
     @State private var showingExitConfirm = false
-    @State private var showingSaveSuccess = false
     @State private var saveError: String?
     @State private var showingMaxPhotos = false
     @State private var showingScanLimit = false
@@ -20,6 +19,8 @@ struct MaterialFormView: View {
     @State private var pendingReview: PendingReview?
     @State private var activeMediaMenu: ActiveMediaMenu?
     @State private var activeSignatureTarget: SignatureTarget?
+    @State private var activeDateTarget: SignatureDateTarget?
+    @State private var pendingDateSelection = Date()
 
     private let draftStore = MaterialDraftStore.shared
     private let mediaStore = MaterialMediaStore()
@@ -111,13 +112,6 @@ struct MaterialFormView: View {
             }
         } message: {
             Text("This report is autosaved as a draft. Leave now and keep the draft, or delete it.")
-        }
-        .alert("Material saved", isPresented: $showingSaveSuccess) {
-            Button("OK") {
-                dismiss()
-            }
-        } message: {
-            Text("This material entry was saved to the job.")
         }
         .alert("Save failed", isPresented: saveErrorBinding) {
             Button("OK", role: .cancel) {
@@ -245,24 +239,56 @@ struct MaterialFormView: View {
                 activeSignatureTarget = nil
             }
         }
+        .sheet(item: $activeDateTarget) { target in
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 20) {
+                    DatePicker("Date", selection: $pendingDateSelection, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+
+                    HStack {
+                        Button("Clear", role: .destructive) {
+                            setDate(nil, for: target)
+                            activeDateTarget = nil
+                        }
+
+                        Spacer()
+
+                        Button("Save") {
+                            setDate(pendingDateSelection, for: target)
+                            activeDateTarget = nil
+                        }
+                        .buttonStyle(FilledFormButtonStyle(color: Brand.primaryButton, textColor: Brand.primaryButtonText))
+                    }
+                }
+                .padding(20)
+                .navigationTitle(target.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            activeDateTarget = nil
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var receivingSection: some View {
         formSection(title: "Receiving") {
-            field("Material description", text: $material.description)
+            field(
+                "Material Description",
+                text: $material.description,
+                axis: .vertical,
+                lineLimit: 2...2
+            )
 
-            HStack(spacing: 12) {
-                field("PO #", text: $material.poNumber)
-                field("Vendor", text: $material.vendor)
-            }
+            field("PO #", text: $material.poNumber)
 
-            HStack(spacing: 12) {
-                field("Qty", text: $material.quantity, keyboard: .numbersAndPunctuation)
-                menuField("Product", selection: $material.productType, options: ["Tube", "Pipe", "Plate", "Fitting", "Bar", "Other"])
-                menuField("A/SA", selection: $material.specificationPrefix, options: ["A", "SA"], width: 82)
-            }
+            field("Vendor", text: $material.vendor)
 
-            DatePicker("Received at", selection: $material.receivedAt, displayedComponents: .date)
+
+            DatePicker("Received On", selection: $material.receivedAt, displayedComponents: .date)
                 .datePickerStyle(.compact)
                 .foregroundStyle(Brand.textPrimary)
         }
@@ -271,10 +297,21 @@ struct MaterialFormView: View {
     private var productSection: some View {
         formSection(title: "Product / Specification") {
             HStack(spacing: 12) {
-                field("Spec/Grade", text: $material.gradeType)
-                menuField("Fitting", selection: $material.fittingStandard, options: ["N/A", "B16"])
-                menuField("", selection: $material.fittingSuffix, options: ["", "5", "9", "11", "34"], labelForOption: { $0.isEmpty ? "Clear" : $0 }, disabled: material.fittingStandard != "B16", width: 84)
+                field("Qty", text: $material.quantity, keyboard: .numbersAndPunctuation)
+                menuField("Product", selection: $material.productType, options: ["Tube", "Pipe", "Plate", "Fitting", "Bar", "Other"])
             }
+
+            HStack(spacing: 12) {
+                menuField("A/SA", selection: $material.specificationPrefix, options: ["A", "SA"], width: 82)
+                field("Spec / Grade", text: $material.gradeType)
+            }
+
+            HStack(spacing: 12) {
+                menuField("B16", selection: $material.fittingStandard, options: ["", "B16"], labelForOption: { $0.isEmpty ? "Select" : $0 }, width: 96)
+                Spacer(minLength: 0)
+            }
+
+            menuField("B16 Type", selection: $material.fittingSuffix, options: ["", "5", "9", "11", "34"], labelForOption: { $0.isEmpty ? "Select" : $0 }, disabled: material.fittingStandard != "B16")
 
             LabeledField(title: "Dimensions") {
                 HStack(spacing: 14) {
@@ -299,24 +336,23 @@ struct MaterialFormView: View {
 
             HStack(spacing: 12) {
                 yesNoField(
-                    title: "Visual inspection acceptable",
+                    title: "Visual Inspection Acceptable",
                     isYes: Binding(
                         get: { material.visualInspectionAcceptable },
                         set: { material.visualInspectionAcceptable = $0 }
                     )
                 )
-                menuField("B16 Dimensions", selection: $material.b16DimensionsAcceptable, options: ["", "Yes", "No"], labelForOption: { $0.isEmpty ? "Clear" : $0 })
+                menuField("B16 Dimensions Acceptable", selection: $material.b16DimensionsAcceptable, options: ["", "Yes", "No"], labelForOption: { $0.isEmpty ? "Select" : $0 })
             }
 
-            field("Specification numbers", text: $material.specificationNumbers, axis: .vertical)
-            field("Actual markings", text: $material.markings, axis: .vertical)
+            field("Actual Material Markings", text: $material.markings, axis: .vertical, lineLimit: 4...4)
         }
     }
 
     private var inspectionSection: some View {
         formSection(title: "Inspection / Disposition") {
             yesNoNaField(
-                title: "Marking acceptable to Code/Standard",
+                title: "Marking Acceptable to Code / Standard",
                 isYes: Binding(
                     get: { material.markingAcceptable && !material.markingAcceptableNa },
                     set: { selected in
@@ -345,7 +381,7 @@ struct MaterialFormView: View {
             )
 
             yesNoNaField(
-                title: "MTR/CoC acceptable to specification",
+                title: "MTR / CoC Acceptable to Specification",
                 isYes: Binding(
                     get: { material.mtrAcceptable && !material.mtrAcceptableNa },
                     set: { selected in
@@ -385,15 +421,15 @@ struct MaterialFormView: View {
 
     private var qcSection: some View {
         formSection(title: "Quality Control") {
-            HStack(spacing: 12) {
-                field("QC initials", text: $material.qcInitials)
-                    .textInputAutocapitalization(.characters)
-                DatePicker("QC date", selection: $material.qcDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
+            dateField(title: "Date", value: material.qcDate, onClear: {
+                material.qcDate = nil
+            }) {
+                pendingDateSelection = material.qcDate ?? .now
+                activeDateTarget = .qcInspector
             }
 
             signatureField(
-                title: "QC inspector signature",
+                title: "QC Signature",
                 signature: material.qcInspectorSignature,
                 onSign: { activeSignatureTarget = .qcInspector },
                 onClear: { clearSignature(for: .qcInspector) }
@@ -407,23 +443,21 @@ struct MaterialFormView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                field("QC manager", text: $material.qcManager)
-                field("Manager initials", text: $material.qcManagerInitials)
-                    .textInputAutocapitalization(.characters)
+            dateField(title: "Date", value: material.qcManagerDate, onClear: {
+                material.qcManagerDate = nil
+            }) {
+                pendingDateSelection = material.qcManagerDate ?? .now
+                activeDateTarget = .qcManager
             }
 
-            DatePicker("QC manager date", selection: $material.qcManagerDate, displayedComponents: .date)
-                .datePickerStyle(.compact)
-
             signatureField(
-                title: "QC manager signature",
+                title: "QC Manager Signature",
                 signature: material.qcManagerSignature,
                 onSign: { activeSignatureTarget = .qcManager },
                 onClear: { clearSignature(for: .qcManager) }
             )
 
-            field("Comments", text: $material.comments, axis: .vertical)
+            field("Comments", text: $material.comments, axis: .vertical, lineLimit: 3...3)
         }
     }
 
@@ -519,7 +553,7 @@ struct MaterialFormView: View {
         didSave = true
         draftStore.clearDraft(for: draftKey)
         onSave(material)
-        showingSaveSuccess = true
+        dismiss()
     }
 
     private func handleDisappear() {
@@ -765,6 +799,15 @@ struct MaterialFormView: View {
         setSignature(nil, for: target)
     }
 
+    private func setDate(_ date: Date?, for target: SignatureDateTarget) {
+        switch target {
+        case .qcInspector:
+            material.qcDate = date
+        case .qcManager:
+            material.qcManagerDate = date
+        }
+    }
+
     private func setSignature(_ signature: SignatureCapture?, for target: SignatureTarget) {
         switch target {
         case .qcInspector:
@@ -789,20 +832,36 @@ struct MaterialFormView: View {
         _ title: String,
         text: Binding<String>,
         axis: Axis = .horizontal,
-        keyboard: UIKeyboardType = .default
+        keyboard: UIKeyboardType = .default,
+        lineLimit: ClosedRange<Int>? = nil
     ) -> some View {
         LabeledField(title: title) {
-            TextField(title, text: text, axis: axis)
-                .keyboardType(keyboard)
-                .padding(.horizontal, 12)
-                .padding(.vertical, axis == .horizontal ? 12 : 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Brand.border, lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            if let lineLimit {
+                TextField(title, text: text, axis: axis)
+                    .lineLimit(lineLimit)
+                    .keyboardType(keyboard)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, axis == .horizontal ? 12 : 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Brand.border, lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                TextField(title, text: text, axis: axis)
+                    .keyboardType(keyboard)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, axis == .horizontal ? 12 : 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Brand.border, lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
         }
     }
 
@@ -913,6 +972,44 @@ struct MaterialFormView: View {
                 }
             }
         }
+    }
+
+    private func dateField(title: String, value: Date?, onClear: @escaping () -> Void, onTap: @escaping () -> Void) -> some View {
+        LabeledField(title: title) {
+            HStack(spacing: 12) {
+                Button(action: onTap) {
+                    HStack {
+                        Text(value.map(formDate) ?? "Select")
+                            .foregroundStyle(value == nil ? Brand.textMuted : Brand.textPrimary)
+                        Spacer()
+                        Image(systemName: "calendar")
+                            .foregroundStyle(Brand.textSecondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Brand.border, lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
+                if value != nil {
+                    Button("Clear", role: .destructive, action: onClear)
+                        .font(.caption.weight(.semibold))
+                }
+            }
+        }
+    }
+
+    private func formDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
 

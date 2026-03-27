@@ -25,7 +25,7 @@ struct MaterialRecord: Identifiable, Hashable, Codable {
     var markings: String
     var comments: String
     var qcInitials: String
-    var qcDate: Date
+    var qcDate: Date?
     var qcInspectorSignature: SignatureCapture?
     var visualInspectionAcceptable: Bool
     var markingAcceptable: Bool
@@ -36,7 +36,7 @@ struct MaterialRecord: Identifiable, Hashable, Codable {
     var materialApproval: MaterialApproval
     var qcManager: String
     var qcManagerInitials: String
-    var qcManagerDate: Date
+    var qcManagerDate: Date?
     var qcManagerSignature: SignatureCapture?
     var offloadStatus: String
     var pdfStatus: String

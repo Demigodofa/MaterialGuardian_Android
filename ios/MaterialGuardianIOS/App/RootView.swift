@@ -46,10 +46,6 @@ private struct SuiteSplashView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 180, height: 180)
-
-                    Text("Welders Helper")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(Brand.title)
                 }
                 .opacity(visible ? 1 : 0)
             }

@@ -82,6 +82,25 @@ enum SignatureTarget: Identifiable {
     }
 }
 
+enum SignatureDateTarget: Identifiable {
+    case qcInspector
+    case qcManager
+
+    var id: String {
+        switch self {
+        case .qcInspector: "qcInspectorDate"
+        case .qcManager: "qcManagerDate"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .qcInspector: "QC Date"
+        case .qcManager: "QC Manager Date"
+        }
+    }
+}
+
 struct LabeledField<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content

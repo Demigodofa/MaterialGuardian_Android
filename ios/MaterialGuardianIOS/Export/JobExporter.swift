@@ -177,7 +177,7 @@ struct JobExporter {
                     "Vendor: \(value(material.vendor))",
                     "Quantity: \(value(material.quantity))",
                     "PO number: \(value(material.poNumber))",
-                    "Received at: \(formattedDate(material.receivedAt))",
+                    "Received on: \(formattedDate(material.receivedAt))",
                 ]
             ),
             (
@@ -186,8 +186,7 @@ struct JobExporter {
                     "Product type: \(value(material.productType))",
                     "Specification prefix: \(value(material.specificationPrefix))",
                     "Grade / spec: \(value(material.gradeType))",
-                    "Specification numbers: \(value(material.specificationNumbers))",
-                    "Fitting standard: \(material.fittingStandard == "N/A" ? "N/A" : "\(material.fittingStandard)\(material.fittingSuffix)")",
+                    "B16 selection: \(b16Summary(material))",
                     "Dimensions: \(dimensionSummary(material))",
                     "Markings: \(value(material.markings))",
                 ]
@@ -206,11 +205,8 @@ struct JobExporter {
             (
                 "Quality",
                 [
-                    "QC initials: \(value(material.qcInitials))",
-                    "QC date: \(formattedDate(material.qcDate))",
-                    "QC manager: \(value(material.qcManager))",
-                    "QC manager initials: \(value(material.qcManagerInitials))",
-                    "QC manager date: \(formattedDate(material.qcManagerDate))",
+                    "Inspector date: \(formattedOptionalDate(material.qcDate))",
+                    "Manager date: \(formattedOptionalDate(material.qcManagerDate))",
                     "Comments: \(value(material.comments))",
                 ]
             )
@@ -224,8 +220,9 @@ struct JobExporter {
         y += 12
         let signatureWidth = (contentWidth - 16) / 2
         drawSignatureBox(
-            title: "QC inspector signature",
+            title: "QC signature",
             signature: material.qcInspectorSignature,
+            date: material.qcDate,
             frame: CGRect(x: margin, y: y, width: signatureWidth, height: 92),
             headerAttributes: headerAttributes,
             bodyAttributes: bodyAttributes
@@ -233,6 +230,7 @@ struct JobExporter {
         drawSignatureBox(
             title: "QC manager signature",
             signature: material.qcManagerSignature,
+            date: material.qcManagerDate,
             frame: CGRect(x: margin + signatureWidth + 16, y: y, width: signatureWidth, height: 92),
             headerAttributes: headerAttributes,
             bodyAttributes: bodyAttributes
@@ -443,27 +441,45 @@ struct JobExporter {
     private func drawSignatureBox(
         title: String,
         signature: SignatureCapture?,
+        date: Date?,
         frame: CGRect,
         headerAttributes: [NSAttributedString.Key: Any],
         bodyAttributes: [NSAttributedString.Key: Any]
     ) {
-        UIColor(white: 0.96, alpha: 1).setFill()
-        UIBezierPath(roundedRect: frame, cornerRadius: 12).fill()
-        UIColor.gray.setStroke()
-        UIBezierPath(roundedRect: frame, cornerRadius: 12).stroke()
-
         title.draw(at: CGPoint(x: frame.minX + 12, y: frame.minY + 12), withAttributes: headerAttributes)
 
-        let signatureRect = CGRect(x: frame.minX + 12, y: frame.minY + 36, width: frame.width - 24, height: frame.height - 48)
+        let signatureRect = CGRect(x: frame.minX + 12, y: frame.minY + 28, width: frame.width - 24, height: frame.height - 52)
         if let signature, !signature.isEmpty {
             if let storedImage = signatureStore.image(for: signature) {
                 drawSignatureImage(storedImage, in: signatureRect)
             } else {
                 drawSignature(signature, in: signatureRect)
             }
-        } else {
-            drawParagraph("No signature captured", at: signatureRect, attributes: bodyAttributes)
         }
+
+        let signatureLineY = frame.maxY - 10
+        let signatureLineStart = CGPoint(x: frame.minX + 12, y: signatureLineY)
+        let signatureLineEnd = CGPoint(x: frame.minX + frame.width * 0.68, y: signatureLineY)
+        let dateLineStart = CGPoint(x: frame.minX + frame.width * 0.76, y: signatureLineY)
+        let dateLineEnd = CGPoint(x: frame.maxX - 12, y: signatureLineY)
+
+        let signatureLinePath = UIBezierPath()
+        signatureLinePath.move(to: signatureLineStart)
+        signatureLinePath.addLine(to: signatureLineEnd)
+        UIColor.gray.setStroke()
+        signatureLinePath.stroke()
+
+        let dateLinePath = UIBezierPath()
+        dateLinePath.move(to: dateLineStart)
+        dateLinePath.addLine(to: dateLineEnd)
+        dateLinePath.stroke()
+
+        drawParagraph("Signature", at: CGRect(x: signatureLineStart.x, y: signatureLineY + 2, width: signatureLineEnd.x - signatureLineStart.x, height: 16), attributes: bodyAttributes)
+        if let date {
+            let dateText = formattedOptionalDate(date)
+            drawParagraph(dateText, at: CGRect(x: dateLineStart.x, y: signatureLineY - 16, width: dateLineEnd.x - dateLineStart.x, height: 16), attributes: bodyAttributes)
+        }
+        drawParagraph("Date", at: CGRect(x: dateLineStart.x, y: signatureLineY + 2, width: dateLineEnd.x - dateLineStart.x, height: 16), attributes: bodyAttributes)
     }
 
     private func drawSignatureImage(_ image: UIImage, in rect: CGRect) {
@@ -538,5 +554,21 @@ struct JobExporter {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func formattedOptionalDate(_ date: Date?) -> String {
+        guard let date else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
+    private func b16Summary(_ material: MaterialRecord) -> String {
+        guard !material.fittingStandard.isEmpty else { return "N/A" }
+        if material.fittingSuffix.isEmpty {
+            return material.fittingStandard
+        }
+        return "\(material.fittingStandard)-\(material.fittingSuffix)"
     }
 }
