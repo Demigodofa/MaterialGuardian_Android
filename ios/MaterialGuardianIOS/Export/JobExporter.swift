@@ -24,6 +24,7 @@ struct JobExporter {
 
     private let fileManager = FileManager.default
     private let mediaStore = MaterialMediaStore()
+    private let signatureStore = SignatureAssetStore()
 
     func export(job: Job) throws -> ExportedJobBundle {
         guard !job.materials.isEmpty else {
@@ -455,10 +456,18 @@ struct JobExporter {
 
         let signatureRect = CGRect(x: frame.minX + 12, y: frame.minY + 36, width: frame.width - 24, height: frame.height - 48)
         if let signature, !signature.isEmpty {
-            drawSignature(signature, in: signatureRect)
+            if let storedImage = signatureStore.image(for: signature) {
+                drawSignatureImage(storedImage, in: signatureRect)
+            } else {
+                drawSignature(signature, in: signatureRect)
+            }
         } else {
             drawParagraph("No signature captured", at: signatureRect, attributes: bodyAttributes)
         }
+    }
+
+    private func drawSignatureImage(_ image: UIImage, in rect: CGRect) {
+        image.draw(in: aspectFitRect(for: image.size, inside: rect))
     }
 
     private func drawSignature(_ signature: SignatureCapture, in rect: CGRect) {
@@ -482,6 +491,18 @@ struct JobExporter {
             }
             path.stroke()
         }
+    }
+
+    private func aspectFitRect(for size: CGSize, inside rect: CGRect) -> CGRect {
+        guard size.width > 0, size.height > 0 else { return rect }
+        let scale = min(rect.width / size.width, rect.height / size.height)
+        let fittedSize = CGSize(width: size.width * scale, height: size.height * scale)
+        return CGRect(
+            x: rect.midX - fittedSize.width / 2,
+            y: rect.midY - fittedSize.height / 2,
+            width: fittedSize.width,
+            height: fittedSize.height
+        )
     }
 
     private func yesNo(_ value: Bool) -> String {

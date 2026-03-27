@@ -23,6 +23,7 @@ struct MaterialFormView: View {
 
     private let draftStore = MaterialDraftStore.shared
     private let mediaStore = MaterialMediaStore()
+    private let signatureStore = SignatureAssetStore()
     let draftKey: String
     let onSave: (MaterialRecord) -> Void
 
@@ -238,12 +239,7 @@ struct MaterialFormView: View {
         }
         .sheet(item: $activeSignatureTarget) { target in
             SignatureCaptureSheet(title: target.title, existing: signature(for: target)) { signature in
-                switch target {
-                case .qcInspector:
-                    material.qcInspectorSignature = signature
-                case .qcManager:
-                    material.qcManagerSignature = signature
-                }
+                saveSignature(signature, for: target)
                 activeSignatureTarget = nil
             } onCancel: {
                 activeSignatureTarget = nil
@@ -400,7 +396,7 @@ struct MaterialFormView: View {
                 title: "QC inspector signature",
                 signature: material.qcInspectorSignature,
                 onSign: { activeSignatureTarget = .qcInspector },
-                onClear: { material.qcInspectorSignature = nil }
+                onClear: { clearSignature(for: .qcInspector) }
             )
 
             LabeledField(title: "Material approval") {
@@ -424,7 +420,7 @@ struct MaterialFormView: View {
                 title: "QC manager signature",
                 signature: material.qcManagerSignature,
                 onSign: { activeSignatureTarget = .qcManager },
-                onClear: { material.qcManagerSignature = nil }
+                onClear: { clearSignature(for: .qcManager) }
             )
 
             field("Comments", text: $material.comments, axis: .vertical)
@@ -750,6 +746,31 @@ struct MaterialFormView: View {
             material.qcInspectorSignature
         case .qcManager:
             material.qcManagerSignature
+        }
+    }
+
+    private func saveSignature(_ signature: SignatureCapture, for target: SignatureTarget) {
+        let existingSignature = self.signature(for: target)
+        do {
+            let stored = try signatureStore.persist(signature: signature)
+            signatureStore.deleteFile(for: existingSignature)
+            setSignature(stored, for: target)
+        } catch {
+            saveError = "Unable to save this signature on the device."
+        }
+    }
+
+    private func clearSignature(for target: SignatureTarget) {
+        signatureStore.deleteFile(for: signature(for: target))
+        setSignature(nil, for: target)
+    }
+
+    private func setSignature(_ signature: SignatureCapture?, for target: SignatureTarget) {
+        switch target {
+        case .qcInspector:
+            material.qcInspectorSignature = signature
+        case .qcManager:
+            material.qcManagerSignature = signature
         }
     }
 

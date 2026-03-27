@@ -279,7 +279,7 @@ struct SignatureCaptureSheet: View {
                     Button("Save") {
                         let normalized = normalize(strokes: renderedStrokes, in: canvasSize)
                         guard !normalized.isEmpty else { return }
-                        onSave(SignatureCapture(strokes: normalized, capturedAt: .now))
+                        onSave(SignatureCapture(strokes: normalized, capturedAt: .now, relativeFilePath: nil))
                     }
                     .buttonStyle(FilledFormButtonStyle(color: Brand.primaryButton, textColor: Brand.primaryButtonText))
                 }

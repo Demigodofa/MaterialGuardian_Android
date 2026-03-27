@@ -1,6 +1,6 @@
 # iOS Handoff
 
-Last updated: 2026-03-24
+Last updated: 2026-03-26
 
 ## Current State
 
@@ -14,6 +14,11 @@ Last updated: 2026-03-24
 - Jobs and materials now persist locally on disk in the iOS scaffold.
 - Material Form drafts now persist locally on disk and survive relaunches.
 - Material Form now includes parity-focused iOS dialogs for save success/failure, draft exit, media review/options, scan fallback, and signature capture.
+- Material photos and scans now persist as real local files on device storage.
+- Job export now generates packet PDFs and a manifest under a stable local export folder.
+- Signature capture now persists stroke data plus PNG signature assets for export use.
+- A simulator build succeeded again on 2026-03-26 after media/export/signature wiring updates.
+- Git branch `codex/ios-media-export` is pushed with commit `bd73c44` as the first remote iOS checkpoint.
 
 ## Product Intent
 
@@ -52,10 +57,10 @@ Export note:
 ## First Practical Tasks
 
 1. Confirm the bundle identifier and development team in Xcode.
-2. Replace placeholder photo/scan flows with real iOS camera and document-scanner wiring.
-3. Persist real signature assets for export instead of form-only stroke data.
-4. Implement export packet generation to match the Android output contract.
-5. Tighten any remaining loading/empty-state and shell spacing differences against Android.
+2. Continue validating camera/photo-library/document-scanner flows in Simulator and on device.
+3. Tighten export/open/share behavior against real iOS file-handling expectations.
+4. Continue top-level polish against Android flow and Welders Helper splash-to-landing branding.
+5. Prepare App Store privacy metadata and submission-safe copy once the user-facing flow is stable.
 
 ## Notes
 

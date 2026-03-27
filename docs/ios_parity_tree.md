@@ -1,6 +1,6 @@
 # iOS Parity Tree
 
-Last updated: 2026-03-24
+Last updated: 2026-03-26
 
 Purpose:
 
@@ -110,7 +110,7 @@ iOS status:
 - shell implemented
 - shared header mirrored
 - edit description, edit job number, export confirm, export success, and export error states are now present
-- export/open/share actions are still placeholder/incomplete on iOS
+- export/open/share actions are now wired to real local export output, with iOS share-sheet fallback behavior
 
 Native iOS wiring needed:
 
@@ -204,13 +204,14 @@ iOS status:
 - Android-style draft exit confirmation is present
 - local draft persistence is now real and survives relaunches
 - save success, save failed, max photo, scan limit, review photo, review scan, media options, scanner fallback, and signature capture flows are now present as iOS-native equivalents
-- media capture is still placeholder/parity-only UI, not real camera/document-scanner wiring yet
+- media capture now persists real local photo/PDF files and includes native image picker and document-scanner wiring
+- signature capture now persists both editable stroke data and PNG assets for export
 
 Native iOS wiring needed:
 
-- camera capture flow
-- document scan flow
-- export packet generation
+- continued real-device validation of camera capture flow
+- continued real-device validation of document scan flow
+- export/open/share polish and packet contract verification
 
 ## 5. Privacy Policy
 

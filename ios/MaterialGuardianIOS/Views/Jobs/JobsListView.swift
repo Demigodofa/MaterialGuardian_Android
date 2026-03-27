@@ -17,8 +17,8 @@ struct JobsListView: View {
                 .padding(20)
             }
             .background(Brand.screenBackground.ignoresSafeArea())
-            .navigationTitle("Material Guardian")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingNewJobSheet) {
                 NewJobSheet()
                     .environmentObject(store)
@@ -52,6 +52,10 @@ struct JobsListView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 6) {
+                    Text("Welders Helper Suite")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.textSecondary)
+                        .textCase(.uppercase)
                     Text("Material Guardian")
                         .font(.title2.weight(.bold))
                         .foregroundStyle(Brand.title)
@@ -116,7 +120,7 @@ struct JobsListView: View {
                         Text("Privacy Policy")
                             .font(.headline)
                             .foregroundStyle(Brand.sectionTitle)
-                        Text("The iOS app should inherit the same public privacy policy and Welders Helper suite standards that already exist in the Android repo.")
+                        Text("How Material Guardian handles photos, scans, signatures, exports, and local device storage.")
                             .font(.subheadline)
                             .foregroundStyle(Brand.textSecondary)
                     }

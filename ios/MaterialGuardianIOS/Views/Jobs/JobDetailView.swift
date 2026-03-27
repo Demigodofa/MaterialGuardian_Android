@@ -71,7 +71,7 @@ struct JobDetailView: View {
                 .alert("Export job", isPresented: $showingExportConfirm) {
                     Button("Cancel", role: .cancel) {}
                     Button("Export") {
-                        runMockExport()
+                        runExport()
                     }
                 } message: {
                     Text(exportPrompt)
@@ -254,7 +254,7 @@ struct JobDetailView: View {
         )
     }
 
-    private func runMockExport() {
+    private func runExport() {
         guard let job else { return }
 
         do {

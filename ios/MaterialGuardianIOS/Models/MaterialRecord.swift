@@ -71,6 +71,7 @@ struct MediaAttachment: Identifiable, Hashable, Codable {
 struct SignatureCapture: Hashable, Codable {
     var strokes: [[SignaturePoint]]
     var capturedAt: Date
+    var relativeFilePath: String?
 
     var isEmpty: Bool {
         strokes.allSatisfy(\.isEmpty)
