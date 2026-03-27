@@ -1,0 +1,501 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B93A60AB5F28DEF2449BEE7 /* DocumentScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89B98D66B131A5174DE7AA3 /* DocumentScannerSheet.swift */; };
+		30C17250D9710CD9096B434F /* MaterialFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C82C827950B9F76DF0441C /* MaterialFormView.swift */; };
+		33C4CE4DC3D6723BD53D6321 /* JobExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60063DE557F063AD9C8D3849 /* JobExporter.swift */; };
+		35C185DB54B63A8CE91AF664 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = B686429557D0A42B897CA09B /* Brand.swift */; };
+		3600B3C665DEC6563329F6D7 /* MaterialDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD96FD77D23935C33F98965 /* MaterialDraftStore.swift */; };
+		4EC5E53528743DB01BD06E4E /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 731AC237C065621881CD2D27 /* RootView.swift */; };
+		6EE60641BDE31341A3A6AB54 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A868D55A53E810065FEFF8AC /* Assets.xcassets */; };
+		726F32ACD7577EA44C35C04E /* NewJobSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C3462CF9C30B64C269938D /* NewJobSheet.swift */; };
+		75CAA0794D685129888080F4 /* JobsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B6882B824D097E2D1EC1DD /* JobsListView.swift */; };
+		8FC7D8EC23CC5CA740AD9747 /* JobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452AD04ABCEFB659C56027A7 /* JobDetailView.swift */; };
+		95AEFBCA01C6878C23B423B1 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180D765D672E57F8966BA629 /* AppStore.swift */; };
+		9BE51D5DE1AD2979369F899C /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA823EA24A53DBEA8D09DB7B /* PrivacyPolicyView.swift */; };
+		9E9F68CC49520F1D747BDB14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5474E880D9C8F2ABE47F94B /* ShareSheet.swift */; };
+		AA1394ADFB1C3A73E83AECAB /* MGHeaderBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D172316748B8E7F25BDEBFF /* MGHeaderBar.swift */; };
+		BD7DA179E6A4224521FC32B3 /* MaterialRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D58C6CFE4C625B97E32F353 /* MaterialRecord.swift */; };
+		CA3DDB5536D971D8D3E2946B /* MaterialGuardianIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF852D07C9FF1FFE42149CBA /* MaterialGuardianIOSApp.swift */; };
+		D1ADF0F4A39FD55516AF294B /* MaterialFormSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B4A623792678FA1C54C23D /* MaterialFormSupport.swift */; };
+		D297BD47AD48B88CD303FE42 /* ImagePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A0073D06E4177F5D10EC04 /* ImagePickerSheet.swift */; };
+		D4049AB3E531172153FA9182 /* Job.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77E438A176B78378DBD947EF /* Job.swift */; };
+		ED220F6D6DC03A9CA07926EE /* MGCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E14CFA410A64F40333FB40D /* MGCard.swift */; };
+		FA09ECFF4B83DBCAEAFD2879 /* MaterialMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 662C7212C778A8B6F9EA0F28 /* MaterialMediaStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		180D765D672E57F8966BA629 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		19A0073D06E4177F5D10EC04 /* ImagePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePickerSheet.swift; sourceTree = "<group>"; };
+		2B2EADCF2A4DF09C1790BC0C /* MaterialGuardianIOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MaterialGuardianIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D172316748B8E7F25BDEBFF /* MGHeaderBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MGHeaderBar.swift; sourceTree = "<group>"; };
+		452AD04ABCEFB659C56027A7 /* JobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobDetailView.swift; sourceTree = "<group>"; };
+		60063DE557F063AD9C8D3849 /* JobExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobExporter.swift; sourceTree = "<group>"; };
+		662C7212C778A8B6F9EA0F28 /* MaterialMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialMediaStore.swift; sourceTree = "<group>"; };
+		69B6882B824D097E2D1EC1DD /* JobsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsListView.swift; sourceTree = "<group>"; };
+		731AC237C065621881CD2D27 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		77E438A176B78378DBD947EF /* Job.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Job.swift; sourceTree = "<group>"; };
+		7D58C6CFE4C625B97E32F353 /* MaterialRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialRecord.swift; sourceTree = "<group>"; };
+		83C3462CF9C30B64C269938D /* NewJobSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewJobSheet.swift; sourceTree = "<group>"; };
+		8E14CFA410A64F40333FB40D /* MGCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MGCard.swift; sourceTree = "<group>"; };
+		A868D55A53E810065FEFF8AC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B686429557D0A42B897CA09B /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		BBD96FD77D23935C33F98965 /* MaterialDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialDraftStore.swift; sourceTree = "<group>"; };
+		D89B98D66B131A5174DE7AA3 /* DocumentScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScannerSheet.swift; sourceTree = "<group>"; };
+		DA823EA24A53DBEA8D09DB7B /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
+		E3C82C827950B9F76DF0441C /* MaterialFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFormView.swift; sourceTree = "<group>"; };
+		E5474E880D9C8F2ABE47F94B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
+		EF852D07C9FF1FFE42149CBA /* MaterialGuardianIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialGuardianIOSApp.swift; sourceTree = "<group>"; };
+		F0B4A623792678FA1C54C23D /* MaterialFormSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFormSupport.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1FCB5118E03C424E0478455C /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				662C7212C778A8B6F9EA0F28 /* MaterialMediaStore.swift */,
+			);
+			path = Media;
+			sourceTree = "<group>";
+		};
+		21D0FB546E6040CE4E75AE7E /* App */ = {
+			isa = PBXGroup;
+			children = (
+				EF852D07C9FF1FFE42149CBA /* MaterialGuardianIOSApp.swift */,
+				731AC237C065621881CD2D27 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		3EE3EF6A82528F91F21941F7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2B2EADCF2A4DF09C1790BC0C /* MaterialGuardianIOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5C5D60663FA18A98D9AA1C51 /* Jobs */ = {
+			isa = PBXGroup;
+			children = (
+				452AD04ABCEFB659C56027A7 /* JobDetailView.swift */,
+				69B6882B824D097E2D1EC1DD /* JobsListView.swift */,
+				83C3462CF9C30B64C269938D /* NewJobSheet.swift */,
+			);
+			path = Jobs;
+			sourceTree = "<group>";
+		};
+		609206C3711308BC94ACF0B1 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				D89B98D66B131A5174DE7AA3 /* DocumentScannerSheet.swift */,
+				19A0073D06E4177F5D10EC04 /* ImagePickerSheet.swift */,
+				8E14CFA410A64F40333FB40D /* MGCard.swift */,
+				3D172316748B8E7F25BDEBFF /* MGHeaderBar.swift */,
+				E5474E880D9C8F2ABE47F94B /* ShareSheet.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		9F35462682A5E001471205FC /* Materials */ = {
+			isa = PBXGroup;
+			children = (
+				F0B4A623792678FA1C54C23D /* MaterialFormSupport.swift */,
+				E3C82C827950B9F76DF0441C /* MaterialFormView.swift */,
+			);
+			path = Materials;
+			sourceTree = "<group>";
+		};
+		B45D0713A9EB80DB9975CF08 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A868D55A53E810065FEFF8AC /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		BA72BA055059008A35F450C1 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				609206C3711308BC94ACF0B1 /* Components */,
+				5C5D60663FA18A98D9AA1C51 /* Jobs */,
+				9F35462682A5E001471205FC /* Materials */,
+				F8480355FB02BFEAE900B5AF /* Privacy */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C42F667123AF07974F941BFD /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				B686429557D0A42B897CA09B /* Brand.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		CB45BE2B58EBDF8C713E45FD /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				60063DE557F063AD9C8D3849 /* JobExporter.swift */,
+			);
+			path = Export;
+			sourceTree = "<group>";
+		};
+		DECFAC1595F9A0CEA94C16D9 /* State */ = {
+			isa = PBXGroup;
+			children = (
+				180D765D672E57F8966BA629 /* AppStore.swift */,
+				BBD96FD77D23935C33F98965 /* MaterialDraftStore.swift */,
+			);
+			path = State;
+			sourceTree = "<group>";
+		};
+		E4A49473D9BE319A53617528 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				77E438A176B78378DBD947EF /* Job.swift */,
+				7D58C6CFE4C625B97E32F353 /* MaterialRecord.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F8480355FB02BFEAE900B5AF /* Privacy */ = {
+			isa = PBXGroup;
+			children = (
+				DA823EA24A53DBEA8D09DB7B /* PrivacyPolicyView.swift */,
+			);
+			path = Privacy;
+			sourceTree = "<group>";
+		};
+		FA184149EA8353773B03C568 = {
+			isa = PBXGroup;
+			children = (
+				FF1A309FCABE414E5DCB17C2 /* MaterialGuardianIOS */,
+				3EE3EF6A82528F91F21941F7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FF1A309FCABE414E5DCB17C2 /* MaterialGuardianIOS */ = {
+			isa = PBXGroup;
+			children = (
+				21D0FB546E6040CE4E75AE7E /* App */,
+				CB45BE2B58EBDF8C713E45FD /* Export */,
+				1FCB5118E03C424E0478455C /* Media */,
+				E4A49473D9BE319A53617528 /* Models */,
+				B45D0713A9EB80DB9975CF08 /* Resources */,
+				DECFAC1595F9A0CEA94C16D9 /* State */,
+				C42F667123AF07974F941BFD /* Theme */,
+				BA72BA055059008A35F450C1 /* Views */,
+			);
+			path = MaterialGuardianIOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		58CE5A22EABC796E69D4233B /* MaterialGuardianIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3436277D6126F32CA64DFDBF /* Build configuration list for PBXNativeTarget "MaterialGuardianIOS" */;
+			buildPhases = (
+				23C02CFFCAF9593BA4911C67 /* Sources */,
+				20F5DB9C5C94D514F0D7C04C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MaterialGuardianIOS;
+			packageProductDependencies = (
+			);
+			productName = MaterialGuardianIOS;
+			productReference = 2B2EADCF2A4DF09C1790BC0C /* MaterialGuardianIOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2AD19A6C1D3A155428380912 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					58CE5A22EABC796E69D4233B = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6E41E99EE9D05FBF6B7B4892 /* Build configuration list for PBXProject "MaterialGuardianIOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = FA184149EA8353773B03C568;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3EE3EF6A82528F91F21941F7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				58CE5A22EABC796E69D4233B /* MaterialGuardianIOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		20F5DB9C5C94D514F0D7C04C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6EE60641BDE31341A3A6AB54 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		23C02CFFCAF9593BA4911C67 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				95AEFBCA01C6878C23B423B1 /* AppStore.swift in Sources */,
+				35C185DB54B63A8CE91AF664 /* Brand.swift in Sources */,
+				0B93A60AB5F28DEF2449BEE7 /* DocumentScannerSheet.swift in Sources */,
+				D297BD47AD48B88CD303FE42 /* ImagePickerSheet.swift in Sources */,
+				D4049AB3E531172153FA9182 /* Job.swift in Sources */,
+				8FC7D8EC23CC5CA740AD9747 /* JobDetailView.swift in Sources */,
+				33C4CE4DC3D6723BD53D6321 /* JobExporter.swift in Sources */,
+				75CAA0794D685129888080F4 /* JobsListView.swift in Sources */,
+				ED220F6D6DC03A9CA07926EE /* MGCard.swift in Sources */,
+				AA1394ADFB1C3A73E83AECAB /* MGHeaderBar.swift in Sources */,
+				3600B3C665DEC6563329F6D7 /* MaterialDraftStore.swift in Sources */,
+				D1ADF0F4A39FD55516AF294B /* MaterialFormSupport.swift in Sources */,
+				30C17250D9710CD9096B434F /* MaterialFormView.swift in Sources */,
+				CA3DDB5536D971D8D3E2946B /* MaterialGuardianIOSApp.swift in Sources */,
+				FA09ECFF4B83DBCAEAFD2879 /* MaterialMediaStore.swift in Sources */,
+				BD7DA179E6A4224521FC32B3 /* MaterialRecord.swift in Sources */,
+				726F32ACD7577EA44C35C04E /* NewJobSheet.swift in Sources */,
+				9BE51D5DE1AD2979369F899C /* PrivacyPolicyView.swift in Sources */,
+				4EC5E53528743DB01BD06E4E /* RootView.swift in Sources */,
+				9E9F68CC49520F1D747BDB14 /* ShareSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		331D358D200484FDEC3B482E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "Material Guardian";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		57BBA0E82A15DF0EC2A8E02B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Material Guardian";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Material Guardian uses the camera for material photos and MTR fallback capture.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Material Guardian can attach existing photos to receiving inspection records.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = (
+					UIInterfaceOrientationPortrait,
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.asme.materialguardian.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6B6B3193249F5D3DF76B03C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Material Guardian";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Material Guardian uses the camera for material photos and MTR fallback capture.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Material Guardian can attach existing photos to receiving inspection records.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = (
+					UIInterfaceOrientationPortrait,
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.asme.materialguardian.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		F7F3EBA330D4BF9A03298E58 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "Material Guardian";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3436277D6126F32CA64DFDBF /* Build configuration list for PBXNativeTarget "MaterialGuardianIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				57BBA0E82A15DF0EC2A8E02B /* Debug */,
+				6B6B3193249F5D3DF76B03C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E41E99EE9D05FBF6B7B4892 /* Build configuration list for PBXProject "MaterialGuardianIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				331D358D200484FDEC3B482E /* Debug */,
+				F7F3EBA330D4BF9A03298E58 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2AD19A6C1D3A155428380912 /* Project object */;
+}
