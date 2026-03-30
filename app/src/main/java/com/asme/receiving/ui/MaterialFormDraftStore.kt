@@ -67,6 +67,9 @@ private fun materialItemToJson(item: MaterialItem): JSONObject {
         put("diameterType", item.diameterType)
         put("visualInspectionAcceptable", item.visualInspectionAcceptable)
         put("b16DimensionsAcceptable", item.b16DimensionsAcceptable)
+        put("surfaceFinishCode", item.surfaceFinishCode)
+        put("surfaceFinishReading", item.surfaceFinishReading)
+        put("surfaceFinishUnit", item.surfaceFinishUnit)
         put("specificationNumbers", item.specificationNumbers)
         put("markings", item.markings)
         put("markingAcceptable", item.markingAcceptable)
@@ -117,6 +120,9 @@ private fun materialItemFromJson(json: JSONObject): MaterialItem {
         diameterType = json.optString("diameterType"),
         visualInspectionAcceptable = json.optBoolean("visualInspectionAcceptable", true),
         b16DimensionsAcceptable = json.optString("b16DimensionsAcceptable"),
+        surfaceFinishCode = json.optString("surfaceFinishCode"),
+        surfaceFinishReading = json.optString("surfaceFinishReading"),
+        surfaceFinishUnit = json.optString("surfaceFinishUnit"),
         specificationNumbers = json.optString("specificationNumbers"),
         markings = json.optString("markings"),
         markingAcceptable = json.optBoolean("markingAcceptable", true),

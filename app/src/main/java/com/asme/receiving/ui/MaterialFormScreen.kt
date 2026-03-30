@@ -86,8 +86,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.asme.receiving.R
-import com.asme.receiving.ui.components.MaterialGuardianHeader
 import com.asme.receiving.data.MaterialItem
+import com.asme.receiving.data.customization.CustomizationRepository
+import com.asme.receiving.data.customization.SurfaceFinishCode
+import com.asme.receiving.data.customization.SurfaceFinishUnit
+import com.asme.receiving.ui.components.MaterialGuardianHeader
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
@@ -111,6 +114,7 @@ fun MaterialFormScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
     val draftStore = remember(context) { MaterialFormDraftStore(context) }
+    val customization = remember(context) { CustomizationRepository(context).load() }
     val draftKey = remember(jobNumber, materialId) { draftStore.draftKey(jobNumber, materialId) }
 
     var materialDescription by remember { mutableStateOf("") }
@@ -133,6 +137,9 @@ fun MaterialFormScreen(
     var diameterType by remember { mutableStateOf("") }
     var visualInspectionAcceptable by remember { mutableStateOf(true) }
     var b16DimensionsAcceptable by remember { mutableStateOf("") }
+    var surfaceFinishCode by remember { mutableStateOf("") }
+    var surfaceFinishReading by remember { mutableStateOf("") }
+    var surfaceFinishUnit by remember { mutableStateOf("") }
     var markings by remember { mutableStateOf("") }
     var markingAcceptable by remember { mutableStateOf(true) }
     var markingAcceptableNa by remember { mutableStateOf(false) }
@@ -264,9 +271,20 @@ fun MaterialFormScreen(
         !visualInspectionAcceptable || !markingAcceptable || !mtrAcceptable ||
         acceptanceStatus != "accept" || materialApproval != "approved" ||
         dimensionUnit != "imperial" || diameterType.isNotBlank() ||
-        b16DimensionsAcceptable.isNotBlank() || photoPaths.isNotEmpty() || scanCaptures.isNotEmpty() ||
+        b16DimensionsAcceptable.isNotBlank() || surfaceFinishCode.isNotBlank() ||
+        surfaceFinishReading.isNotBlank() || photoPaths.isNotEmpty() || scanCaptures.isNotEmpty() ||
         markingAcceptableNa || mtrAcceptableNa || qcSignaturePath.isNotBlank() ||
         qcManagerSignaturePath.isNotBlank()
+
+    val showB16Fields = customization.enableB16Fields ||
+        fittingStandard == "B16" ||
+        fittingSuffix.isNotBlank() ||
+        b16DimensionsAcceptable.isNotBlank()
+    val showSurfaceFinishFields = customization.enableSurfaceFinish ||
+        surfaceFinishCode.isNotBlank() ||
+        surfaceFinishReading.isNotBlank() ||
+        surfaceFinishUnit.isNotBlank()
+    val resolvedSurfaceFinishUnit = surfaceFinishUnit.ifBlank { customization.surfaceFinishUnit }
 
     val encodedPhotoPaths = photoPaths.joinToString("|")
     val encodedScanPaths = scanCaptures.joinToString("|") { encodeScanCapture(it) }
@@ -304,6 +322,9 @@ fun MaterialFormScreen(
             onDiameterType = { diameterType = it },
             onVisual = { visualInspectionAcceptable = it },
             onB16 = { b16DimensionsAcceptable = it },
+            onSurfaceFinishCode = { surfaceFinishCode = it },
+            onSurfaceFinishReading = { surfaceFinishReading = it },
+            onSurfaceFinishUnit = { surfaceFinishUnit = it },
             onMarkings = { markings = it },
             onMarkingAcceptable = { markingAcceptable = it },
             onMarkingAcceptableNa = { markingAcceptableNa = it },
@@ -363,6 +384,12 @@ fun MaterialFormScreen(
         }
     }
 
+    LaunchedEffect(showSurfaceFinishFields, customization.surfaceFinishUnit, restoredDraftOrRecord) {
+        if (restoredDraftOrRecord && showSurfaceFinishFields && surfaceFinishUnit.isBlank()) {
+            surfaceFinishUnit = customization.surfaceFinishUnit
+        }
+    }
+
     fun buildDraftSnapshot(): MaterialItem {
         return MaterialItem(
             id = materialId ?: "",
@@ -387,6 +414,9 @@ fun MaterialFormScreen(
             diameterType = diameterType,
             visualInspectionAcceptable = visualInspectionAcceptable,
             b16DimensionsAcceptable = b16DimensionsAcceptable,
+            surfaceFinishCode = surfaceFinishCode,
+            surfaceFinishReading = surfaceFinishReading,
+            surfaceFinishUnit = resolvedSurfaceFinishUnit,
             specificationNumbers = specificationPrefix,
             markings = markings,
             markingAcceptable = markingAcceptable,
@@ -513,6 +543,9 @@ fun MaterialFormScreen(
         diameterType,
         visualInspectionAcceptable,
         b16DimensionsAcceptable,
+        surfaceFinishCode,
+        surfaceFinishReading,
+        surfaceFinishUnit,
         markings,
         markingAcceptable,
         markingAcceptableNa,
@@ -795,20 +828,22 @@ fun MaterialFormScreen(
                     singleLine = true
                 )
             }
-            LabeledField("Fitting", modifier = Modifier.weight(0.8f)) {
-                DropdownField(
-                    value = fittingStandard,
-                    options = listOf("N/A", "B16"),
-                    placeholder = "N/A"
-                ) { fittingStandard = it }
-            }
-            LabeledField("", modifier = Modifier.weight(0.6f)) {
-                DropdownField(
-                    value = fittingSuffix,
-                    options = listOf("5", "9", "11", "34"),
-                    placeholder = "",
-                    enabled = fittingStandard == "B16"
-                ) { fittingSuffix = it }
+            if (showB16Fields) {
+                LabeledField("Fitting", modifier = Modifier.weight(0.8f)) {
+                    DropdownField(
+                        value = fittingStandard,
+                        options = listOf("N/A", "B16"),
+                        placeholder = "N/A"
+                    ) { fittingStandard = it }
+                }
+                LabeledField("", modifier = Modifier.weight(0.6f)) {
+                    DropdownField(
+                        value = fittingSuffix,
+                        options = listOf("5", "9", "11", "34"),
+                        placeholder = "",
+                        enabled = fittingStandard == "B16"
+                    ) { fittingSuffix = it }
+                }
             }
         }
 
@@ -914,13 +949,51 @@ fun MaterialFormScreen(
                 )
             }
 
-            LabeledField("B16 Dimensions", modifier = Modifier.weight(0.8f)) {
-                DropdownField(
-                    value = b16DimensionsAcceptable,
-                    options = listOf("", "Yes", "No"),
-                    optionLabel = { option -> if (option.isBlank()) "Clear" else option },
-                    placeholder = ""
-                ) { b16DimensionsAcceptable = it }
+            if (showB16Fields) {
+                LabeledField("B16 Dimensions", modifier = Modifier.weight(0.8f)) {
+                    DropdownField(
+                        value = b16DimensionsAcceptable,
+                        options = listOf("", "Yes", "No"),
+                        optionLabel = { option -> if (option.isBlank()) "Clear" else option },
+                        placeholder = ""
+                    ) { b16DimensionsAcceptable = it }
+                }
+            }
+        }
+
+        if (showSurfaceFinishFields) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                LabeledField("Surface Finish", modifier = Modifier.weight(0.8f)) {
+                    DropdownField(
+                        value = surfaceFinishCode,
+                        options = SurfaceFinishCode.all,
+                        optionLabel = SurfaceFinishCode::label,
+                        placeholder = ""
+                    ) { surfaceFinishCode = it }
+                }
+
+                LabeledField("Actual Surface Finish Reading", modifier = Modifier.weight(1.2f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = surfaceFinishReading,
+                            onValueChange = { surfaceFinishReading = sanitizeFourDecimalInput(it) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Text(
+                            text = SurfaceFinishUnit.label(resolvedSurfaceFinishUnit),
+                            color = MaterialGuardianColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             }
         }
 
@@ -1162,7 +1235,10 @@ fun MaterialFormScreen(
                         diameter = diameter,
                         diameterType = diameterType,
                         visualInspectionAcceptable = visualInspectionAcceptable,
-                        b16DimensionsAcceptable = b16DimensionsAcceptable,
+                        b16DimensionsAcceptable = if (showB16Fields) b16DimensionsAcceptable else "",
+                        surfaceFinishCode = if (showSurfaceFinishFields) surfaceFinishCode else "",
+                        surfaceFinishReading = if (showSurfaceFinishFields) surfaceFinishReading else "",
+                        surfaceFinishUnit = if (showSurfaceFinishFields) resolvedSurfaceFinishUnit else "",
                         markings = markings,
                         markingAcceptable = markingAcceptable,
                         markingAcceptableNa = markingAcceptableNa,
@@ -2103,6 +2179,9 @@ private fun applyMaterialToState(
     onDiameterType: (String) -> Unit,
     onVisual: (Boolean) -> Unit,
     onB16: (String) -> Unit,
+    onSurfaceFinishCode: (String) -> Unit,
+    onSurfaceFinishReading: (String) -> Unit,
+    onSurfaceFinishUnit: (String) -> Unit,
     onMarkings: (String) -> Unit,
     onMarkingAcceptable: (Boolean) -> Unit,
     onMarkingAcceptableNa: (Boolean) -> Unit,
@@ -2143,6 +2222,9 @@ private fun applyMaterialToState(
     onDiameterType(material.diameterType)
     onVisual(material.visualInspectionAcceptable)
     onB16(material.b16DimensionsAcceptable)
+    onSurfaceFinishCode(material.surfaceFinishCode)
+    onSurfaceFinishReading(material.surfaceFinishReading)
+    onSurfaceFinishUnit(material.surfaceFinishUnit)
     onMarkings(material.markings)
     onMarkingAcceptable(material.markingAcceptable)
     onMarkingAcceptableNa(material.markingAcceptableNa)
@@ -2162,5 +2244,24 @@ private fun applyMaterialToState(
     onOffloadStatus(material.offloadStatus)
     onPdfStatus(material.pdfStatus)
     onPdfStoragePath(material.pdfStoragePath)
+}
+
+private fun sanitizeFourDecimalInput(input: String): String {
+    val filtered = buildString(input.length) {
+        input.forEachIndexed { index, char ->
+            if (char.isDigit()) {
+                append(char)
+            } else if (char == '.' && index > 0 && !contains('.')) {
+                append(char)
+            }
+        }
+    }
+    val decimalIndex = filtered.indexOf('.')
+    if (decimalIndex < 0) {
+        return filtered.take(10)
+    }
+    val whole = filtered.substring(0, decimalIndex).take(6)
+    val fractional = filtered.substring(decimalIndex + 1).take(4)
+    return if (fractional.isEmpty()) "$whole." else "$whole.$fractional"
 }
 

@@ -31,12 +31,17 @@ class JobsScreenTest {
     }
 
     @Test
-    fun jobsScreenShowsJobAndDeleteButton() {
+    fun jobsScreenShowsJobDeleteAndCustomization() {
         composeRule.setContent {
-            JobsScreen(onJobClick = {})
+            JobsScreen(
+                onJobClick = {},
+                onCustomizationClick = {},
+                onPrivacyPolicyClick = {}
+            )
         }
 
         composeRule.onNodeWithText("Job# JOB-55").assertIsDisplayed()
         composeRule.onNodeWithText("Delete").assertIsDisplayed()
+        composeRule.onNodeWithText("Customization").assertIsDisplayed()
     }
 }

@@ -7,7 +7,7 @@ import com.asme.receiving.data.MaterialItem
 
 @Database(
     entities = [JobItem::class, MaterialItem::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

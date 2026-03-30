@@ -14,6 +14,7 @@ import com.asme.receiving.ui.JobsScreen
 import com.asme.receiving.ui.MaterialFormScreen
 import com.asme.receiving.ui.PrivacyPolicyScreen
 import com.asme.receiving.ui.SplashScreen
+import com.asme.receiving.ui.CustomizationScreen
 import com.asme.receiving.ui.theme.MaterialGuardianTheme
 
 class MainActivity : ComponentActivity() {
@@ -44,6 +45,9 @@ fun AppNavigation() {
                 JobsScreen(
                     onJobClick = { jobNumber ->
                         navController.navigate("job_detail/$jobNumber")
+                    },
+                    onCustomizationClick = {
+                        navController.navigate("customization")
                     },
                     onPrivacyPolicyClick = {
                         navController.navigate("privacy_policy")
@@ -91,6 +95,12 @@ fun AppNavigation() {
             composable("privacy_policy") {
                 PrivacyPolicyScreen(
                     onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable("customization") {
+                CustomizationScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

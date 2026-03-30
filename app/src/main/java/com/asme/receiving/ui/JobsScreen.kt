@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun JobsScreen(
     onJobClick: (String) -> Unit,
+    onCustomizationClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit,
     viewModel: JobsViewModel = viewModel()
 ) {
@@ -122,11 +123,16 @@ fun JobsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
-                    onClick = onPrivacyPolicyClick,
-                    modifier = Modifier.align(Alignment.End)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text("Privacy Policy")
+                    TextButton(onClick = onCustomizationClick) {
+                        Text("Customization")
+                    }
+                    TextButton(onClick = onPrivacyPolicyClick) {
+                        Text("Privacy Policy")
+                    }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
 

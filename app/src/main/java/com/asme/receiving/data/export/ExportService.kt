@@ -15,6 +15,8 @@ import com.asme.receiving.data.JobItem
 import com.asme.receiving.data.MaterialItem
 import com.asme.receiving.data.MaterialRepository
 import com.asme.receiving.data.JobRepository
+import com.asme.receiving.data.customization.CustomizationRepository
+import com.asme.receiving.data.customization.SurfaceFinishUnit
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
@@ -46,6 +48,7 @@ class ExportService(
     private val materialRepository: MaterialRepository = MaterialRepository()
 ) {
     private val dateFormatter = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+    private val customizationRepository = CustomizationRepository(context)
 
     suspend fun exportJob(jobNumber: String): ExportResult {
         PDFBoxResourceLoader.init(context)
@@ -123,6 +126,7 @@ class ExportService(
     }
 
     private fun appendReceivingReport(document: PDDocument, job: JobItem, material: MaterialItem) {
+        val customization = customizationRepository.load()
         val page = PDPage(PDRectangle.LETTER)
         document.addPage(page)
         PDPageContentStream(document, page).use { stream ->
@@ -130,6 +134,15 @@ class ExportService(
             val width = PDRectangle.LETTER.width - margin * 2
             var y = PDRectangle.LETTER.height - margin
 
+            drawReportLogo(
+                document = document,
+                stream = stream,
+                logoPath = customization.companyLogoPath,
+                x = PDRectangle.LETTER.width - margin - 118f,
+                y = y - 40f,
+                maxWidth = 118f,
+                maxHeight = 40f
+            )
             stream.setFont(PDType1Font.HELVETICA_BOLD, 16f)
             drawText(stream, margin, y, "RECEIVING INSPECTION REPORT")
             y -= 20f
@@ -161,9 +174,7 @@ class ExportService(
                     LabelValue("Grade/Type", material.gradeType, 0.2f),
                     LabelValue(
                         "Fitting",
-                        listOf(material.fittingStandard, material.fittingSuffix)
-                            .filter { it.isNotBlank() }
-                            .joinToString("."),
+                        material.fittingDisplayValue(),
                         0.2f
                     )
                 )
@@ -217,14 +228,48 @@ class ExportService(
                 )
             )
             y -= 4f
+            if (material.b16DimensionsAcceptable.isNotBlank()) {
+                y = drawLabelBoxRow(
+                    stream,
+                    margin,
+                    y,
+                    width,
+                    listOf(
+                        LabelValue("B16 Dimensions Acceptable", material.b16DimensionsAcceptable, 1f)
+                    )
+                )
+            }
+            if (material.hasSurfaceFinishData()) {
+                val surfaceFinishItems = mutableListOf<LabelValue>()
+                if (material.surfaceFinishCode.isNotBlank()) {
+                    surfaceFinishItems += LabelValue(
+                        label = "Surface Finish",
+                        value = material.surfaceFinishCode,
+                        widthFraction = if (material.surfaceFinishReading.isNotBlank()) 0.35f else 1f
+                    )
+                }
+                if (material.surfaceFinishReading.isNotBlank()) {
+                    surfaceFinishItems += LabelValue(
+                        label = "Surface Finish Reading",
+                        value = material.formattedSurfaceFinishReading(),
+                        widthFraction = if (material.surfaceFinishCode.isNotBlank()) 0.65f else 1f
+                    )
+                }
+                y = drawLabelBoxRow(
+                    stream,
+                    margin,
+                    y,
+                    width,
+                    surfaceFinishItems
+                )
+            }
             y = drawLabelBoxRow(
                 stream,
                 margin,
                 y,
                 width,
                 listOf(
-                    LabelValue("B16 Dimensions Acceptable", material.b16DimensionsAcceptable, 0.5f),
-                    LabelValue("Marking Actual", material.markings, 0.5f)
+                    LabelValue("Marking Actual", material.markings, 1f)
                 ),
                 boxHeight = 48f
             )
@@ -442,6 +487,27 @@ class ExportService(
         val drawHeight = image.height * scale
         val drawX = x + ((width - drawWidth) / 2f)
         val drawY = y + ((height - drawHeight) / 2f)
+        stream.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+    }
+
+    private fun drawReportLogo(
+        document: PDDocument,
+        stream: PDPageContentStream,
+        logoPath: String,
+        x: Float,
+        y: Float,
+        maxWidth: Float,
+        maxHeight: Float
+    ) {
+        if (logoPath.isBlank()) return
+        val file = File(logoPath)
+        if (!file.exists()) return
+        val image = runCatching { createPdfImage(document, file) }.getOrNull() ?: return
+        val scale = minOf(maxWidth / image.width, maxHeight / image.height)
+        val drawWidth = image.width * scale
+        val drawHeight = image.height * scale
+        val drawX = x + ((maxWidth - drawWidth) / 2f)
+        val drawY = y + ((maxHeight - drawHeight) / 2f)
         stream.drawImage(image, drawX, drawY, drawWidth, drawHeight)
     }
 
@@ -854,4 +920,22 @@ class ExportService(
     private fun truncate(value: String, length: Int): String {
         return if (value.length <= length) value else value.substring(0, length)
     }
+}
+
+private fun MaterialItem.fittingDisplayValue(): String {
+    if (fittingStandard.isBlank() || fittingStandard == "N/A") return ""
+    return listOf(fittingStandard, fittingSuffix)
+        .filter { it.isNotBlank() }
+        .joinToString(".")
+}
+
+private fun MaterialItem.hasSurfaceFinishData(): Boolean {
+    return surfaceFinishCode.isNotBlank() || surfaceFinishReading.isNotBlank()
+}
+
+private fun MaterialItem.formattedSurfaceFinishReading(): String {
+    val unitLabel = surfaceFinishUnit.takeIf { it.isNotBlank() }?.let(SurfaceFinishUnit::label).orEmpty()
+    return listOf(surfaceFinishReading, unitLabel)
+        .filter { it.isNotBlank() }
+        .joinToString(" ")
 }

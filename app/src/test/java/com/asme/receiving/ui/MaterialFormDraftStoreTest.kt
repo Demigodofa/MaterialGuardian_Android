@@ -34,6 +34,9 @@ class MaterialFormDraftStoreTest {
             description = "Plate",
             qcInitials = "KP",
             qcManager = "Kevin",
+            surfaceFinishCode = "SF2",
+            surfaceFinishReading = "0.1250",
+            surfaceFinishUnit = "microns",
             photoPaths = "/tmp/photo1.jpg|/tmp/photo2.jpg",
             scanPaths = "/tmp/scan1.pdf\t/tmp/scan1.jpg"
         )
@@ -46,6 +49,9 @@ class MaterialFormDraftStoreTest {
         assertEquals("Plate", restored.description)
         assertEquals("KP", restored.qcInitials)
         assertEquals("Kevin", restored.qcManager)
+        assertEquals("SF2", restored.surfaceFinishCode)
+        assertEquals("0.1250", restored.surfaceFinishReading)
+        assertEquals("microns", restored.surfaceFinishUnit)
         assertEquals("/tmp/photo1.jpg|/tmp/photo2.jpg", restored.photoPaths)
         assertEquals("/tmp/scan1.pdf\t/tmp/scan1.jpg", restored.scanPaths)
     }
