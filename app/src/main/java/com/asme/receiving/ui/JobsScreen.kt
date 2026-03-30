@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -45,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.asme.receiving.R
 import com.asme.receiving.data.JobItem
@@ -74,101 +74,104 @@ fun JobsScreen(
                 .fillMaxSize()
                 .background(MaterialGuardianColors.ScreenBackground)
         ) {
-            val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-            val logoSize = (screenHeight * 0.25f).coerceIn(96.dp, 160.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp)
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize()
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.material_guardian_512),
-                    contentDescription = "Material Guardian Logo",
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(logoSize)
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .fillMaxWidth(0.75f)
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialGuardianColors.PrimaryButton,
-                        contentColor = MaterialGuardianColors.PrimaryButtonText
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 2.dp
-                    )
-                ) {
-                    Text(
-                        text = "Create Job",
-                        style = TextStyle(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp
-                        )
-                    )
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                HorizontalDivider(
-                    color = MaterialGuardianColors.Divider,
-                    thickness = 1.dp,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onCustomizationClick) {
-                        Text("Customization")
-                    }
-                    TextButton(onClick = onPrivacyPolicyClick) {
-                        Text("Privacy Policy")
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+                val logoSize = (maxHeight * 0.25f).coerceIn(96.dp, 160.dp)
 
-                if (uiState.loading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.material_guardian_512),
+                        contentDescription = "Material Guardian Logo",
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .size(logoSize)
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .fillMaxWidth(0.75f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialGuardianColors.PrimaryButton,
+                            contentColor = MaterialGuardianColors.PrimaryButtonText
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 6.dp,
+                            pressedElevation = 2.dp
+                        )
+                    ) {
                         Text(
-                            "Loading jobs...",
-                            color = MaterialGuardianColors.TextSecondary
+                            text = "Create Job",
+                            style = TextStyle(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            )
                         )
                     }
-                } else if (uiState.items.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            "No jobs yet. Create your first job above.",
-                            textAlign = TextAlign.Center,
-                            color = MaterialGuardianColors.TextMuted
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "Current Jobs",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialGuardianColors.TextPrimary
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(
+                        color = MaterialGuardianColors.Divider,
+                        thickness = 1.dp,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    LazyColumn(
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        items(uiState.items) { job ->
-                            JobLinkRow(
-                                job = job,
-                                onClick = { onJobClick(job.jobNumber) },
-                                onDelete = { jobToDelete = job }
+                        TextButton(onClick = onCustomizationClick) {
+                            Text("Customization")
+                        }
+                        TextButton(onClick = onPrivacyPolicyClick) {
+                            Text("Privacy Policy")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (uiState.loading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Loading jobs...",
+                                color = MaterialGuardianColors.TextSecondary
                             )
+                        }
+                    } else if (uiState.items.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "No jobs yet. Create your first job above.",
+                                textAlign = TextAlign.Center,
+                                color = MaterialGuardianColors.TextMuted
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Current Jobs",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialGuardianColors.TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LazyColumn(
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.items) { job ->
+                                JobLinkRow(
+                                    job = job,
+                                    onClick = { onJobClick(job.jobNumber) },
+                                    onDelete = { jobToDelete = job }
+                                )
+                            }
                         }
                     }
                 }
