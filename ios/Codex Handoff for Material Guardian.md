@@ -1,19 +1,20 @@
 # Codex Handoff for Material Guardian
 
-Last updated: 2026-03-25
+Last updated: 2026-03-31
 
 ## Project location
 
 - Repo root: `C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android`
 - Remote: `https://github.com/Demigodofa/MaterialGuardian_Android.git`
 - Branch: `main`
-- Current synced commit: `900adc1` `Add iOS Codex handoff note`
+- Current synced commit: `8be96bf` `Tighten report layout and clean launch splash`
 
 ## Current state
 
 - The shipping app in this repo is Android-native Kotlin.
 - There is no iOS app built yet.
-- The repo is clean and `main` is tracking `origin/main`.
+- Android app work is ahead of the older iOS notes and should be treated as the current product reference.
+- This Windows clone is not fully clean because Kevin keeps live handoff/docs notes here; do not assume `ios/` or `AGENTS.md` being modified means Android app code is out of sync.
 - The next Codex session should treat Android as the reference implementation and build the Apple version under `ios/`.
 - If a newer clone, branch, or Mac working copy already contains iOS files, preserve that work and extend it instead of replacing it with a fresh scaffold.
 - This Windows clone currently only has the handoff files under `ios/`; if a newer Mac working copy has unpushed iOS files, pull and push carefully there so an older tree does not overwrite newer Apple work.
@@ -30,6 +31,15 @@ Last updated: 2026-03-25
 8. `docs/google_play_submission.md`
 9. `docs/welders_helper_suite.md`
 10. `www/privacy-policy.html`
+11. `docs/monetization_backend_handoff.md`
+12. `ios/android-preferences-change-notes-2026-03-30.md`
+13. `ios/apple-backend-coordination-2026-03-30.md`
+
+## Review-first workflow
+
+- For this repo, treat rereads, fix-hunting, adjustment ideas, design decisions, live output checks, and "does it actually run" validation as part of a code-review pass first.
+- Use regular Codex work for the implementation/editing phase after the review pass identifies the needed change.
+- Keep the runtime checks real, but group them under the review umbrella when possible to reduce pure Codex token use.
 
 ## Where the important files are
 
@@ -68,11 +78,27 @@ Last updated: 2026-03-25
 - Local export behavior centered on one job folder and one packet PDF per material
 - Privacy-policy and store wording where still applicable
 
+## Android behavior that changed after the first iOS note
+
+- Landing screen now exposes a real `Customization` entry point.
+- Customization/preferences currently drive:
+  - whether ASME B16 receiving fields appear
+  - whether surface-finish fields appear
+  - which fixed surface-finish unit is shown on the receiving form
+  - whether a company logo is embedded in exported reports
+- The receiving form still keeps the `Imperial` / `Metric` material-level choice on-device.
+- New-material form entry was hardened so starting a new receiving report should reset cleanly instead of restoring the last abandoned `__new__` draft.
+- Photo previews were corrected to respect image orientation while exported photos already retained proper orientation.
+- Export PDF layout was tightened repeatedly to keep the receiving report on one page and keep lower sections aligned.
+- Android launch behavior was cleaned so the app should go straight into the intended splash flow instead of briefly showing the launcher icon first.
+
 ## Important Android details to preserve when porting
 
 - Draft safety was hardened recently; interrupted receiving-report sessions should not lose user work
 - Local data is intentionally kept on-device; cloud sync/export is deferred
 - Export/share behavior was adjusted to work better with real-world share targets like SharePoint
+- Optional report/logo/customization behavior is now part of the product, not just an Android experiment
+- The Android team is already thinking ahead to backend-driven auth, seat control, trials, and cross-platform entitlement handling; do not hard-code store-only account assumptions on iOS
 - Release signing and Play setup exist for Android only and should not be copied into iOS signing
 - Version nomenclature should stay aligned across platforms: use `major.minor.patch` with no `v` prefix for the user-facing app version, keep Android `versionCode` and iOS build number as increasing integers, and use operational release labels like `1.0.2 (3) - Export Fixes` or `1.0.2 (3) Internal - Export Fixes`
 
