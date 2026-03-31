@@ -214,7 +214,7 @@ class ExportService(
                     Toggle("Imperial", material.dimensionUnit == "imperial"),
                     Toggle("Metric", material.dimensionUnit == "metric")
                 ),
-                toggleYOffset = 2f
+                optionYOffset = 10f
             )
             y = drawLabelBoxRow(
                 stream,
@@ -426,19 +426,20 @@ class ExportService(
         label: String,
         toggles: List<Toggle>,
         labelYOffset: Float = 0f,
-        toggleYOffset: Float = 0f
+        optionYOffset: Float = 0f
     ): Float {
         stream.setFont(PDType1Font.HELVETICA, 10f)
         drawText(stream, x, y + labelYOffset, label)
         var cursor = x + 200f
         toggles.forEach { toggle ->
-            drawRect(stream, cursor, y + toggleYOffset - 12f, 12f, 12f)
+            val optionY = y + optionYOffset
+            drawRect(stream, cursor, optionY - 12f, 12f, 12f)
             if (toggle.selected) {
                 stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
-                drawText(stream, cursor + 3f, y + toggleYOffset - 9f, "X")
+                drawText(stream, cursor + 3f, optionY - 9f, "X")
                 stream.setFont(PDType1Font.HELVETICA, 10f)
             }
-            drawText(stream, cursor + 18f, y + toggleYOffset, toggle.label)
+            drawText(stream, cursor + 18f, optionY, toggle.label)
             cursor += 90f
         }
         return y - 18f

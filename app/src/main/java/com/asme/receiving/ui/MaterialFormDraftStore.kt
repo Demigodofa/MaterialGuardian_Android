@@ -20,14 +20,16 @@ class MaterialFormDraftStore(
         return runCatching { materialItemFromJson(JSONObject(raw)) }.getOrNull()
     }
 
+    @SuppressLint("ApplySharedPref")
     fun save(key: String, item: MaterialItem) {
         preferences.edit()
             .putString(key, materialItemToJson(item).toString())
-            .apply()
+            .commit()
     }
 
+    @SuppressLint("ApplySharedPref")
     fun clear(key: String) {
-        preferences.edit().remove(key).apply()
+        preferences.edit().remove(key).commit()
     }
 
     @SuppressLint("ApplySharedPref")

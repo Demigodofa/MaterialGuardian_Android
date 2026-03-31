@@ -4,6 +4,18 @@ Date: 2026-03-30
 
 This note is for the Apple/macOS-side agent building the iOS version of Material Guardian.
 
+Direction update:
+
+- long-term client strategy is now shared Flutter + backend
+- use this Apple note for Apple/store/platform-specific concerns, not as a signal to build a separate long-term native iOS product by default
+- current Android behavior still defines product behavior until the Flutter client exists
+- active repo split is now:
+  - `MaterialGuardian_Android` for the current shipping/reference app
+  - `material-guardian-mobile` for the future shared Flutter client
+  - `app-platforms-backend` for the shared backend
+- Flutter/mobile source of truth now lives in `material-guardian-mobile/docs/material_guardian_flutter_source_of_truth.md`
+- backend/monetization source of truth now lives in `app-platforms-backend/docs/material_guardian_monetization_source_of_truth.md`
+
 ## Why this note exists
 
 Product direction is expanding beyond a local-only mobile utility.

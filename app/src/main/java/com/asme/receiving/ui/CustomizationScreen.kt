@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,11 +25,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,10 +41,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.asme.receiving.data.customization.AppCustomization
 import com.asme.receiving.data.customization.CustomizationRepository
 import com.asme.receiving.data.customization.SurfaceFinishUnit
@@ -57,11 +68,18 @@ fun CustomizationScreen(
     var enableSurfaceFinish by remember { mutableStateOf(initialState.enableSurfaceFinish) }
     var surfaceFinishUnit by remember { mutableStateOf(initialState.surfaceFinishUnit) }
     var companyLogoPath by remember { mutableStateOf(initialState.companyLogoPath) }
+    var defaultQcInspectorName by remember { mutableStateOf(initialState.defaultQcInspectorName) }
+    var defaultQcManagerName by remember { mutableStateOf(initialState.defaultQcManagerName) }
+    var savedQcInspectorSignaturePath by remember { mutableStateOf(initialState.savedQcInspectorSignaturePath) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf<String?>(null) }
+    var showSignatureDialog by remember { mutableStateOf(false) }
 
     val currentLogoBitmap = remember(companyLogoPath) {
         companyLogoPath.takeIf { it.isNotBlank() && File(it).exists() }?.let(BitmapFactory::decodeFile)
+    }
+    val currentInspectorSignature = remember(savedQcInspectorSignaturePath) {
+        savedQcInspectorSignaturePath.takeIf { it.isNotBlank() && File(it).exists() }?.let(BitmapFactory::decodeFile)
     }
 
     val logoPicker = rememberLauncherForActivityResult(
@@ -163,6 +181,39 @@ fun CustomizationScreen(
         Spacer(modifier = Modifier.height(28.dp))
 
         PreferenceSection(
+            title = "Quality Control Defaults",
+            body = "These values can prefill the printed QC name fields on new receiving reports."
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = defaultQcInspectorName,
+            onValueChange = {
+                defaultQcInspectorName = it.take(40)
+                saveMessage = null
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Default QC Inspector Printed Name") }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = defaultQcManagerName,
+            onValueChange = {
+                defaultQcManagerName = it.take(40)
+                saveMessage = null
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Default QC Manager Printed Name") }
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        PreferenceSection(
             title = "Add Company Logo to Reports",
             body = "Upload a logo for exported receiving reports. The app will resize and normalize the image automatically."
         )
@@ -244,6 +295,72 @@ fun CustomizationScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
+        PreferenceSection(
+            title = "Saved Inspector Signature",
+            body = "Capture a reusable QC inspector signature so new reports can apply it quickly."
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialGuardianColors.CardBackground,
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (currentInspectorSignature != null) {
+                    Image(
+                        bitmap = currentInspectorSignature.asImageBitmap(),
+                        contentDescription = "Saved QC inspector signature",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(96.dp)
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                } else {
+                    Text(
+                        text = "No saved QC inspector signature yet.",
+                        color = MaterialGuardianColors.TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                Button(
+                    onClick = { showSignatureDialog = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialGuardianColors.PrimaryButton,
+                        contentColor = MaterialGuardianColors.PrimaryButtonText
+                    )
+                ) {
+                    Text(if (savedQcInspectorSignaturePath.isBlank()) "Capture Signature" else "Replace Signature")
+                }
+
+                if (savedQcInspectorSignaturePath.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            repository.clearDefaultQcInspectorSignature()
+                            savedQcInspectorSignaturePath = ""
+                            saveMessage = "Saved inspector signature removed."
+                        }
+                    ) {
+                        Text("Remove Signature")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         Button(
             onClick = {
                 repository.save(
@@ -251,7 +368,10 @@ fun CustomizationScreen(
                         enableB16Fields = enableB16Fields,
                         enableSurfaceFinish = enableSurfaceFinish,
                         surfaceFinishUnit = surfaceFinishUnit,
-                        companyLogoPath = companyLogoPath
+                        companyLogoPath = companyLogoPath,
+                        defaultQcInspectorName = defaultQcInspectorName,
+                        defaultQcManagerName = defaultQcManagerName,
+                        savedQcInspectorSignaturePath = savedQcInspectorSignaturePath
                     )
                 )
                 saveError = null
@@ -271,6 +391,26 @@ fun CustomizationScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp + navigationBottomPadding))
+    }
+
+    if (showSignatureDialog) {
+        CustomSignatureDialog(
+            title = "Saved QC Inspector Signature",
+            onSave = { bitmap ->
+                repository.saveDefaultQcInspectorSignature(bitmap)
+                    .onSuccess {
+                        savedQcInspectorSignaturePath = it
+                        saveError = null
+                        saveMessage = "Saved QC inspector signature updated."
+                    }
+                    .onFailure {
+                        saveError = it.message ?: "Unable to save the QC inspector signature."
+                    }
+                bitmap.recycle()
+                showSignatureDialog = false
+            },
+            onDismiss = { showSignatureDialog = false }
+        )
     }
 }
 
@@ -331,4 +471,115 @@ private fun PreferenceChoiceChip(
     ) {
         Text(label)
     }
+}
+
+@Composable
+private fun CustomSignatureDialog(
+    title: String,
+    onSave: (android.graphics.Bitmap) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var strokes by remember { mutableStateOf(listOf<List<Offset>>()) }
+    var currentStroke by remember { mutableStateOf(listOf<Offset>()) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
+    AlertDialog(
+        onDismissRequest = { },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = { Text(title) },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.96f)
+                    .height(170.dp)
+                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                    .background(Color.White, RoundedCornerShape(10.dp))
+                    .onGloballyPositioned { canvasSize = it.size }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset -> currentStroke = listOf(offset) },
+                            onDrag = { change, _ ->
+                                currentStroke = currentStroke + change.position
+                            },
+                            onDragEnd = {
+                                if (currentStroke.isNotEmpty()) {
+                                    strokes = strokes + listOf(currentStroke)
+                                    currentStroke = emptyList()
+                                }
+                            }
+                        )
+                    }
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                    val allStrokes = if (currentStroke.isNotEmpty()) strokes + listOf(currentStroke) else strokes
+                    allStrokes.forEach { stroke ->
+                        for (index in 0 until stroke.size - 1) {
+                            drawLine(
+                                color = Color.Black,
+                                start = stroke[index],
+                                end = stroke[index + 1],
+                                strokeWidth = 4f,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val finalized = if (currentStroke.isNotEmpty()) strokes + listOf(currentStroke) else strokes
+                    if (finalized.isEmpty()) return@TextButton
+                    onSave(renderCustomizationSignatureBitmap(finalized, canvasSize))
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = {
+                    strokes = emptyList()
+                    currentStroke = emptyList()
+                }) {
+                    Text("Clear")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+
+private fun renderCustomizationSignatureBitmap(
+    strokes: List<List<Offset>>,
+    canvasSize: IntSize
+): android.graphics.Bitmap {
+    val width = canvasSize.width.coerceAtLeast(800)
+    val height = canvasSize.height.coerceAtLeast(260)
+    val bitmap = android.graphics.Bitmap.createBitmap(
+        width,
+        height,
+        android.graphics.Bitmap.Config.ARGB_8888
+    )
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK
+        strokeWidth = 6f
+        style = android.graphics.Paint.Style.STROKE
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        strokeJoin = android.graphics.Paint.Join.ROUND
+        isAntiAlias = true
+    }
+    strokes.forEach { stroke ->
+        for (index in 0 until stroke.size - 1) {
+            val start = stroke[index]
+            val end = stroke[index + 1]
+            canvas.drawLine(start.x, start.y, end.x, end.y, paint)
+        }
+    }
+    return bitmap
 }

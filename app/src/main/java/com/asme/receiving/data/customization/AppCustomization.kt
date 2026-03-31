@@ -4,7 +4,10 @@ data class AppCustomization(
     val enableB16Fields: Boolean = true,
     val enableSurfaceFinish: Boolean = false,
     val surfaceFinishUnit: String = SurfaceFinishUnit.MICROINCH,
-    val companyLogoPath: String = ""
+    val companyLogoPath: String = "",
+    val defaultQcInspectorName: String = "",
+    val defaultQcManagerName: String = "",
+    val savedQcInspectorSignaturePath: String = ""
 )
 
 object SurfaceFinishUnit {

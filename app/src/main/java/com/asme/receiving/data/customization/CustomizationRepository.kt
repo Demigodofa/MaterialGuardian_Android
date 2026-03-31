@@ -22,7 +22,10 @@ class CustomizationRepository(
             surfaceFinishUnit = preferences.getString(KEY_SURFACE_FINISH_UNIT, SurfaceFinishUnit.MICROINCH)
                 ?.takeIf { it in SurfaceFinishUnit.all }
                 ?: SurfaceFinishUnit.MICROINCH,
-            companyLogoPath = preferences.getString(KEY_COMPANY_LOGO_PATH, "") ?: ""
+            companyLogoPath = preferences.getString(KEY_COMPANY_LOGO_PATH, "") ?: "",
+            defaultQcInspectorName = preferences.getString(KEY_DEFAULT_QC_INSPECTOR_NAME, "") ?: "",
+            defaultQcManagerName = preferences.getString(KEY_DEFAULT_QC_MANAGER_NAME, "") ?: "",
+            savedQcInspectorSignaturePath = preferences.getString(KEY_SAVED_QC_INSPECTOR_SIGNATURE_PATH, "") ?: ""
         )
     }
 
@@ -32,6 +35,9 @@ class CustomizationRepository(
             .putBoolean(KEY_ENABLE_SURFACE_FINISH, customization.enableSurfaceFinish)
             .putString(KEY_SURFACE_FINISH_UNIT, customization.surfaceFinishUnit)
             .putString(KEY_COMPANY_LOGO_PATH, customization.companyLogoPath)
+            .putString(KEY_DEFAULT_QC_INSPECTOR_NAME, customization.defaultQcInspectorName)
+            .putString(KEY_DEFAULT_QC_MANAGER_NAME, customization.defaultQcManagerName)
+            .putString(KEY_SAVED_QC_INSPECTOR_SIGNATURE_PATH, customization.savedQcInspectorSignaturePath)
             .apply()
     }
 
@@ -51,18 +57,43 @@ class CustomizationRepository(
             val bitmap = decodeBitmap(context, sourceUri, sampleSize)
                 ?: error("Unable to decode the selected image.")
 
+            val existingLogoPath = load().companyLogoPath
             val normalized = bitmap.scaleDownTo(MAX_LOGO_DIMENSION)
             val logoDirectory = File(context.filesDir, "customization").also { it.mkdirs() }
-            val outputFile = File(logoDirectory, "company_logo.jpg")
+            val preserveAlpha = normalized.hasAlpha()
+            val outputFile = File(logoDirectory, if (preserveAlpha) "company_logo.png" else "company_logo.jpg")
             FileOutputStream(outputFile).use { output ->
-                normalized.compress(Bitmap.CompressFormat.JPEG, 90, output)
+                val format = if (preserveAlpha) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+                val quality = if (preserveAlpha) 100 else 90
+                normalized.compress(format, quality, output)
             }
             bitmap.recycle()
             if (normalized !== bitmap) {
                 normalized.recycle()
             }
+            if (existingLogoPath.isNotBlank() && existingLogoPath != outputFile.absolutePath) {
+                runCatching { File(existingLogoPath).delete() }
+            }
             preferences.edit()
                 .putString(KEY_COMPANY_LOGO_PATH, outputFile.absolutePath)
+                .apply()
+            outputFile.absolutePath
+        }
+    }
+
+    fun saveDefaultQcInspectorSignature(bitmap: Bitmap): Result<String> {
+        return runCatching {
+            val existingSignaturePath = load().savedQcInspectorSignaturePath
+            val customizationDirectory = File(context.filesDir, "customization").also { it.mkdirs() }
+            val outputFile = File(customizationDirectory, "default_qc_inspector_signature.png")
+            FileOutputStream(outputFile).use { output ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+            }
+            if (existingSignaturePath.isNotBlank() && existingSignaturePath != outputFile.absolutePath) {
+                runCatching { File(existingSignaturePath).delete() }
+            }
+            preferences.edit()
+                .putString(KEY_SAVED_QC_INSPECTOR_SIGNATURE_PATH, outputFile.absolutePath)
                 .apply()
             outputFile.absolutePath
         }
@@ -77,12 +108,24 @@ class CustomizationRepository(
             .apply()
     }
 
+    fun clearDefaultQcInspectorSignature() {
+        load().savedQcInspectorSignaturePath.takeIf { it.isNotBlank() }?.let { path ->
+            runCatching { File(path).delete() }
+        }
+        preferences.edit()
+            .putString(KEY_SAVED_QC_INSPECTOR_SIGNATURE_PATH, "")
+            .apply()
+    }
+
     companion object {
         private const val PREFERENCES_NAME = "material_guardian_customization"
         private const val KEY_ENABLE_B16 = "enable_b16_fields"
         private const val KEY_ENABLE_SURFACE_FINISH = "enable_surface_finish"
         private const val KEY_SURFACE_FINISH_UNIT = "surface_finish_unit"
         private const val KEY_COMPANY_LOGO_PATH = "company_logo_path"
+        private const val KEY_DEFAULT_QC_INSPECTOR_NAME = "default_qc_inspector_name"
+        private const val KEY_DEFAULT_QC_MANAGER_NAME = "default_qc_manager_name"
+        private const val KEY_SAVED_QC_INSPECTOR_SIGNATURE_PATH = "saved_qc_inspector_signature_path"
         private const val MAX_LOGO_DIMENSION = 1200
     }
 }

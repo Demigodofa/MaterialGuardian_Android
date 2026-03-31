@@ -14,8 +14,13 @@ Last updated: 2026-03-31
 - The shipping app in this repo is Android-native Kotlin.
 - There is no iOS app built yet.
 - Android app work is ahead of the older iOS notes and should be treated as the current product reference.
+- Long-term client direction is now a shared Flutter app plus backend, not "separate full native iOS app by default."
+- Active repo split is now:
+  - `MaterialGuardian_Android` for the current shipping/reference app
+  - `material-guardian-mobile` for the future shared Flutter client
+  - `app-platforms-backend` for the shared backend
 - This Windows clone is not fully clean because Kevin keeps live handoff/docs notes here; do not assume `ios/` or `AGENTS.md` being modified means Android app code is out of sync.
-- The next Codex session should treat Android as the reference implementation and build the Apple version under `ios/`.
+- The next Codex session should treat Android as the reference implementation while planning/building the Flutter + backend path; use `ios/` for Apple-specific notes until a real cross-platform client structure exists.
 - If a newer clone, branch, or Mac working copy already contains iOS files, preserve that work and extend it instead of replacing it with a fresh scaffold.
 - This Windows clone currently only has the handoff files under `ios/`; if a newer Mac working copy has unpushed iOS files, pull and push carefully there so an older tree does not overwrite newer Apple work.
 
@@ -26,15 +31,18 @@ Last updated: 2026-03-31
 3. `C:\Users\KevinPenfield\.codex\skills\kevin-codex\references\foundation.md`
 4. `C:\Users\KevinPenfield\.codex\skills\kevin-codex\references\web-apps.md`
 5. `README.md`
-6. `docs/release_handoff.md`
-7. `docs/play_release.md`
-8. `docs/google_play_submission.md`
-9. `docs/welders_helper_suite.md`
-10. `www/privacy-policy.html`
-11. `docs/monetization_backend_handoff.md`
-12. `docs/next_phase_product_plan_2026-03-31.md`
-13. `ios/android-preferences-change-notes-2026-03-30.md`
-14. `ios/apple-backend-coordination-2026-03-30.md`
+6. `material-guardian-mobile/docs/material_guardian_flutter_source_of_truth.md`
+7. `app-platforms-backend/docs/material_guardian_monetization_source_of_truth.md`
+8. `docs/release_handoff.md`
+9. `docs/play_release.md`
+10. `docs/google_play_submission.md`
+11. `docs/welders_helper_suite.md`
+12. `www/privacy-policy.html`
+13. `docs/monetization_backend_handoff.md`
+14. `docs/flutter_backend_direction_2026-03-31.md`
+15. `docs/next_phase_product_plan_2026-03-31.md`
+16. `ios/android-preferences-change-notes-2026-03-30.md`
+17. `ios/apple-backend-coordination-2026-03-30.md`
 
 ## Review-first workflow
 
@@ -67,6 +75,7 @@ Last updated: 2026-03-31
 - Put Apple-specific code and docs under `ios/`
 - Keep Android and iOS in the same repo, but do not mix build systems or signing files
 - If `ios/` already contains Swift/Xcode project files in another environment, treat them as authoritative in-progress work and avoid destructive rewrites
+- If the product moves into a Flutter workspace, keep Apple-specific setup, signing, StoreKit notes, and platform exceptions clearly separated from shared Dart/app logic
 
 ## Behavior the iOS version should match
 
@@ -123,6 +132,6 @@ These help on Kevin's PC but should not drive iOS architecture:
 
 Ask Codex to:
 
-`Open C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android and read ios/Codex Handoff for Material Guardian.md first. Use the Android app under app/ as the behavior reference, keep new Apple work under ios/, and help plan or build an iOS version of Material Guardian without touching Android signing files.`
+`Open C:\Users\KevinPenfield\source\repos\Demigodofa\MaterialGuardian_Android and read ios/Codex Handoff for Material Guardian.md first. Use the Android app under app/ as the behavior reference, read docs/flutter_backend_direction_2026-03-31.md, and help plan or build the Flutter + backend path for Material Guardian without touching Android signing files.`
 
 Also tell Codex that if there is already iOS work in this clone, branch, or another newer Mac copy, it should preserve and extend that work instead of replacing it with a fresh scaffold. Have it also check `C:\Users\KevinPenfield\.codex\skills\kevin-codex\` on this PC to pick up Kevin-machine workflow context and see whether any durable guidance or legacy workflow notes should be updated as the iOS work progresses.

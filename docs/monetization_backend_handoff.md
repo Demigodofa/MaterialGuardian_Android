@@ -4,6 +4,11 @@ Date: 2026-03-30
 
 This note captures the current monetization direction for Material Guardian so future Android, backend, and iOS sessions do not rediscover the same product decisions.
 
+Authoritative location note:
+
+- the backend/monetization source of truth now lives in `app-platforms-backend/docs/material_guardian_monetization_source_of_truth.md`
+- if this file and the backend repo ever differ, the backend repo wins
+
 ## Current product direction
 
 Material Guardian is moving from a local-only paid utility toward a cross-platform, account-based product with:
@@ -15,11 +20,31 @@ Material Guardian is moving from a local-only paid utility toward a cross-platfo
 - one active signed-in device per user at a time
 - cross-platform entitlement recognition between Apple and Android
 
+Client direction note:
+
+- the long-term client target is now a shared Flutter app for Android and iPhone
+- the current Kotlin Android app remains the behavior reference until that migration exists
+- backend design should not assume separate native clients as the long-term destination
+- active repo split:
+  - `MaterialGuardian_Android` for the current shipping/reference app
+  - `material-guardian-mobile` for the future shared Flutter client
+  - `app-platforms-backend` for the shared backend
+
 ## Core business model in mind
 
-- Business purchase example:
-  - `5 seats`
-  - about `$49.99 / month`
+- Individual plan:
+  - `$9.99 / month`
+  - `$99.99 / year`
+  - annual plan should show savings versus 12 monthly payments
+- Business plan:
+  - `$49.99 / month`
+  - `$499.99 / year`
+  - includes up to `5 seats`
+  - annual plan should show savings versus 12 monthly payments
+- Current savings math to preserve in pricing UI and backend plan metadata:
+  - individual annual saves `$19.89`
+  - business annual saves `$99.89`
+- There is no final one-time purchase model defined right now.
 - One user can own unlimited devices, but can only be actively logged in on one device at a time.
 - If the same user signs into a second device, the app should ask whether to sign out the old device and move the active session to the new one.
 - Re-login on another device should allow the user to recover their data.
@@ -109,6 +134,25 @@ Important note:
 - Apple-to-Android access is fine if backend entitlements exist
 - it is not a direct store-to-store transfer
 - backend is the bridge
+
+## Pricing and catalog implications
+
+The first concrete plan catalog should assume:
+
+- `material_guardian_individual_monthly`
+- `material_guardian_individual_yearly`
+- `material_guardian_business_5_monthly`
+- `material_guardian_business_5_yearly`
+
+The backend should return enough plan data for the app to show:
+
+- plan name
+- billing interval
+- seat count included
+- display price
+- annual savings amount and/or savings copy for yearly plan presentation
+
+Do not make mobile clients infer plan meaning from raw store product identifiers alone.
 
 ## Apple and Google store implications
 

@@ -107,6 +107,7 @@ import java.time.format.DateTimeFormatter
 fun MaterialFormScreen(
     jobNumber: String,
     materialId: String? = null,
+    restoreDraft: Boolean = false,
     onNavigateBack: () -> Unit,
     viewModel: MaterialViewModel = viewModel()
 ) {
@@ -118,6 +119,7 @@ fun MaterialFormScreen(
     val customization = remember(context) { CustomizationRepository(context).load() }
     val draftKey = remember(jobNumber, materialId) { draftStore.draftKey(jobNumber, materialId) }
     var suppressDraftPersistence by remember(draftKey) { mutableStateOf(false) }
+    var forceDraftDeleteOnExit by remember(draftKey) { mutableStateOf(false) }
 
     var materialDescription by remember { mutableStateOf("") }
     var poNumber by remember { mutableStateOf("") }
@@ -184,6 +186,7 @@ fun MaterialFormScreen(
     var selectedMediaIndex by remember { mutableStateOf<Int?>(null) }
     var selectedMediaType by remember { mutableStateOf<CaptureType?>(null) }
     var showSignatureDialog by remember { mutableStateOf(false) }
+    var showInspectorSignatureChoiceDialog by remember { mutableStateOf(false) }
     var signatureTarget by remember { mutableStateOf(SignatureTarget.QcInspector) }
     var showMaxPhotosDialog by remember { mutableStateOf(false) }
     var showScanLimitDialog by remember { mutableStateOf(false) }
@@ -269,7 +272,9 @@ fun MaterialFormScreen(
         thickness1.isNotBlank() || thickness2.isNotBlank() || thickness3.isNotBlank() ||
         thickness4.isNotBlank() || width.isNotBlank() || length.isNotBlank() ||
         diameter.isNotBlank() || markings.isNotBlank() || comments.isNotBlank() ||
-        qcInitials.isNotBlank() || qcManager.isNotBlank() || qcManagerInitials.isNotBlank() ||
+        qcInitials != customization.defaultQcInspectorName ||
+        qcManager != customization.defaultQcManagerName ||
+        qcManagerInitials.isNotBlank() ||
         !visualInspectionAcceptable || !markingAcceptable || !mtrAcceptable ||
         acceptanceStatus != "accept" || materialApproval != "approved" ||
         dimensionUnit != "imperial" || diameterType.isNotBlank() ||
@@ -384,11 +389,11 @@ fun MaterialFormScreen(
         mtrAcceptableNa = false
         acceptanceStatus = "accept"
         comments = ""
-        qcInitials = ""
+        qcInitials = customization.defaultQcInspectorName
         qcDate = LocalDate.now()
         qcSignaturePath = ""
         materialApproval = "approved"
-        qcManager = ""
+        qcManager = customization.defaultQcManagerName
         qcManagerInitials = ""
         qcManagerDate = LocalDate.now()
         qcManagerSignaturePath = ""
@@ -403,12 +408,23 @@ fun MaterialFormScreen(
     }
 
     var restoredDraftOrRecord by remember(draftKey) { mutableStateOf(false) }
+    var hasStartedDraftSession by remember(draftKey, materialId, restoreDraft) {
+        mutableStateOf(restoreDraft || materialId != null)
+    }
 
     LaunchedEffect(draftKey, materialId, uiState.loading, uiState.material?.id) {
         if (restoredDraftOrRecord) return@LaunchedEffect
         if (materialId.isNullOrBlank()) {
-            draftStore.clearImmediately(draftKey)
-            resetNewMaterialState()
+            if (restoreDraft) {
+                val draft = draftStore.load(draftKey)
+                if (draft != null) {
+                    restoreMaterialState(draft)
+                } else {
+                    resetNewMaterialState()
+                }
+            } else {
+                resetNewMaterialState()
+            }
             restoredDraftOrRecord = true
             return@LaunchedEffect
         }
@@ -437,6 +453,12 @@ fun MaterialFormScreen(
     LaunchedEffect(showSurfaceFinishFields, customization.surfaceFinishUnit, restoredDraftOrRecord) {
         if (restoredDraftOrRecord && showSurfaceFinishFields && surfaceFinishUnit.isBlank()) {
             surfaceFinishUnit = customization.surfaceFinishUnit
+        }
+    }
+
+    LaunchedEffect(isDirty) {
+        if (isDirty) {
+            hasStartedDraftSession = true
         }
     }
 
@@ -493,16 +515,21 @@ fun MaterialFormScreen(
         )
     }
 
-    val shouldPersistDraft = !suppressDraftPersistence && (materialId != null || isDirty)
+    val shouldPersistDraft = !suppressDraftPersistence && hasStartedDraftSession && (materialId != null || restoreDraft || isDirty)
     val latestDraftSnapshot by rememberUpdatedState(newValue = buildDraftSnapshot())
     val latestShouldPersistDraft by rememberUpdatedState(newValue = shouldPersistDraft)
+    val latestHasStartedDraftSession by rememberUpdatedState(newValue = hasStartedDraftSession)
+    val latestForceDraftDeleteOnExit by rememberUpdatedState(newValue = forceDraftDeleteOnExit)
 
     DisposableEffect(lifecycleOwner, draftKey, restoredDraftOrRecord) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && restoredDraftOrRecord) {
-                if (latestShouldPersistDraft) {
+                // A user-selected draft delete must win over the generic autosave observer.
+                if (latestForceDraftDeleteOnExit) {
+                    draftStore.clearImmediately(draftKey)
+                } else if (latestShouldPersistDraft) {
                     draftStore.saveImmediately(draftKey, latestDraftSnapshot)
-                } else {
+                } else if (latestHasStartedDraftSession) {
                     draftStore.clearImmediately(draftKey)
                 }
             }
@@ -621,7 +648,7 @@ fun MaterialFormScreen(
         if (!restoredDraftOrRecord) return@LaunchedEffect
         if (shouldPersistDraft) {
             draftStore.save(draftKey, buildDraftSnapshot())
-        } else {
+        } else if (hasStartedDraftSession) {
             draftStore.clear(draftKey)
         }
     }
@@ -1163,8 +1190,14 @@ fun MaterialFormScreen(
                     label = "QC inspector signature",
                     signaturePath = qcSignaturePath,
                     onSign = {
-                        signatureTarget = SignatureTarget.QcInspector
-                        showSignatureDialog = true
+                        if (customization.savedQcInspectorSignaturePath.isNotBlank() &&
+                            File(customization.savedQcInspectorSignaturePath).exists()
+                        ) {
+                            showInspectorSignatureChoiceDialog = true
+                        } else {
+                            signatureTarget = SignatureTarget.QcInspector
+                            showSignatureDialog = true
+                        }
                     },
                     onClear = {
                         deleteIfPresent(qcSignaturePath)
@@ -1362,14 +1395,17 @@ fun MaterialFormScreen(
 
     if (showDiscardDialog) {
         ConfirmExitDialog(
-            onKeepDraft = {
+            onLeave = {
                 showDiscardDialog = false
+                forceDraftDeleteOnExit = false
                 draftStore.saveImmediately(draftKey, buildDraftSnapshot())
                 onNavigateBack()
             },
             onDeleteDraft = {
                 showDiscardDialog = false
+                forceDraftDeleteOnExit = true
                 suppressDraftPersistence = true
+                hasStartedDraftSession = false
                 draftStore.clearImmediately(draftKey)
                 onNavigateBack()
             },
@@ -1377,16 +1413,18 @@ fun MaterialFormScreen(
         )
     }
 
+    fun acknowledgeSaveSuccess() {
+        showSaveSuccess = false
+        onNavigateBack()
+    }
+
     if (showSaveSuccess) {
         AlertDialog(
-            onDismissRequest = { showSaveSuccess = false },
+            onDismissRequest = { acknowledgeSaveSuccess() },
             title = { Text("Material saved") },
             text = { Text("This material entry was saved to the job.") },
             confirmButton = {
-                TextButton(onClick = {
-                    showSaveSuccess = false
-                    onNavigateBack()
-                }) {
+                TextButton(onClick = { acknowledgeSaveSuccess() }) {
                     Text("OK")
                 }
             }
@@ -1570,6 +1608,50 @@ fun MaterialFormScreen(
                 showSignatureDialog = false
             },
             onDismiss = { showSignatureDialog = false }
+        )
+    }
+
+    if (showInspectorSignatureChoiceDialog) {
+        val inspectorName = customization.defaultQcInspectorName.ifBlank { "this inspector" }
+        AlertDialog(
+            onDismissRequest = { showInspectorSignatureChoiceDialog = false },
+            title = { Text("Apply saved signature?") },
+            text = { Text("$inspectorName has a saved digital signature. Would you like to apply it or draw a new one?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val sourcePath = customization.savedQcInspectorSignaturePath
+                    val targetFile = buildSignatureFile(
+                        context = context,
+                        jobNumber = jobNumber,
+                        materialDescription = materialDescription,
+                        target = SignatureTarget.QcInspector
+                    )
+                    val savedPath = copySignatureFileToMaterial(sourcePath, targetFile)
+                    if (savedPath != null) {
+                        deleteIfPresent(qcSignaturePath, savedPath)
+                        qcSignaturePath = savedPath
+                    } else {
+                        saveError = "Unable to apply the saved QC inspector signature."
+                    }
+                    showInspectorSignatureChoiceDialog = false
+                }) {
+                    Text("Apply Saved")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = {
+                        showInspectorSignatureChoiceDialog = false
+                        signatureTarget = SignatureTarget.QcInspector
+                        showSignatureDialog = true
+                    }) {
+                        Text("Draw New")
+                    }
+                    TextButton(onClick = { showInspectorSignatureChoiceDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
         )
     }
 
@@ -2036,7 +2118,7 @@ private fun SignatureDialog(
 
 @Composable
 private fun ConfirmExitDialog(
-    onKeepDraft: () -> Unit,
+    onLeave: () -> Unit,
     onDeleteDraft: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2044,17 +2126,17 @@ private fun ConfirmExitDialog(
         onDismissRequest = onDismiss,
         title = { Text("Exit receiving report?") },
         text = {
-            Text("This report is autosaved as a draft. Leave now and keep the draft, or delete it.")
+            Text("This report will be autosaved as a draft when you leave. Keep editing, leave now, or delete the draft.")
         },
         confirmButton = {
             Button(
-                onClick = onKeepDraft,
+                onClick = onLeave,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialGuardianColors.Success,
                     contentColor = MaterialGuardianColors.PrimaryButtonText
                 )
             ) {
-                Text("Keep Draft")
+                Text("Leave")
             }
         },
         dismissButton = {
@@ -2236,6 +2318,15 @@ private fun renderSignatureBitmap(
 private fun deleteIfPresent(path: String, skipIfEquals: String = "") {
     if (path.isBlank() || path == skipIfEquals) return
     File(path).delete()
+}
+
+private fun copySignatureFileToMaterial(sourcePath: String, targetFile: File): String? {
+    if (sourcePath.isBlank()) return null
+    val sourceFile = File(sourcePath)
+    if (!sourceFile.exists()) return null
+    targetFile.parentFile?.mkdirs()
+    sourceFile.copyTo(targetFile, overwrite = true)
+    return targetFile.absolutePath
 }
 
 private fun encodeScanCapture(capture: ScanCapture): String {

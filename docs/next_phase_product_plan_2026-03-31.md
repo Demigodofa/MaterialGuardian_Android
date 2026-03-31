@@ -4,6 +4,24 @@ Date: 2026-03-31
 
 This note captures the next agreed product direction before more Android or iOS implementation begins.
 
+Authoritative location note:
+
+- Flutter/mobile planning should now be centered in `material-guardian-mobile/docs/material_guardian_flutter_source_of_truth.md`
+- backend/monetization planning should now be centered in `app-platforms-backend/docs/material_guardian_monetization_source_of_truth.md`
+
+## Architecture direction
+
+- Long-term client direction is now:
+  - shared Flutter app for Android and iPhone
+  - backend-owned auth, seats, subscriptions, trials, and cross-platform entitlements
+- The current Kotlin Android app remains the behavior reference until a Flutter client replaces it.
+- The active repo split is now:
+  - `MaterialGuardian_Android`
+  - `material-guardian-mobile`
+  - `app-platforms-backend`
+- Do not assume the next major investment is a separate full native iOS client.
+- Read `docs/flutter_backend_direction_2026-03-31.md` before planning cross-platform implementation work.
+
 ## Draft and new-material behavior
 
 - `Add Material` should always open a fresh blank receiving form.
@@ -55,3 +73,4 @@ If the next session continues Android product work, read this file first along w
 1. `ios/android-preferences-change-notes-2026-03-30.md`
 2. `ios/apple-backend-coordination-2026-03-30.md`
 3. `docs/monetization_backend_handoff.md`
+4. `docs/flutter_backend_direction_2026-03-31.md`

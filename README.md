@@ -1,6 +1,10 @@
 # MaterialGuardian Android (Native Kotlin)
 
-Native Android app for receiving inspection with offline-first workflows. Cloud export has been deferred; all data remains local on device for now.
+Native Android app for receiving inspection with offline-first workflows. This repo's current shipping implementation is Android-native Kotlin, but the long-term product direction is now a shared Flutter client plus backend; see `docs/flutter_backend_direction_2026-03-31.md`. Active repo split:
+
+- `MaterialGuardian_Android`: current shipping/reference implementation
+- `material-guardian-mobile`: future shared Flutter client
+- `app-platforms-backend`: future shared backend
 
 ## Quick start
 

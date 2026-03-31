@@ -64,6 +64,9 @@ fun AppNavigation() {
                     onAddMaterial = { targetJob ->
                         navController.navigate("material_form/$targetJob")
                     },
+                    onOpenDraft = { targetJob ->
+                        navController.navigate("material_form/$targetJob?restoreDraft=true")
+                    },
                     onEditMaterial = { targetJob, materialId ->
                         navController.navigate("material_form/$targetJob?materialId=$materialId")
                     },
@@ -76,19 +79,24 @@ fun AppNavigation() {
             }
 
             composable(
-                "material_form/{jobNumber}?materialId={materialId}",
+                "material_form/{jobNumber}?materialId={materialId}&restoreDraft={restoreDraft}",
                 arguments = listOf(
                     navArgument("materialId") {
                         defaultValue = ""
                         nullable = true
+                    },
+                    navArgument("restoreDraft") {
+                        defaultValue = false
                     }
                 )
             ) { backStackEntry ->
                 val jobNumber = backStackEntry.arguments?.getString("jobNumber") ?: ""
                 val materialId = backStackEntry.arguments?.getString("materialId") ?: ""
+                val restoreDraft = backStackEntry.arguments?.getBoolean("restoreDraft") ?: false
                 MaterialFormScreen(
                     jobNumber = jobNumber,
                     materialId = materialId.ifBlank { null },
+                    restoreDraft = restoreDraft,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

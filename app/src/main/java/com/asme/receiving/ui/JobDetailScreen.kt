@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.asme.receiving.data.MaterialItem
 import com.asme.receiving.data.export.ExportResult
@@ -63,15 +67,18 @@ fun JobDetailScreen(
     jobNumber: String,
     onNavigateBack: () -> Unit,
     onAddMaterial: (String) -> Unit,
+    onOpenDraft: (String) -> Unit,
     onEditMaterial: (String, String) -> Unit,
     onJobRenamed: (String) -> Unit,
     viewModel: JobDetailViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val uiStateFlow = remember(jobNumber) { viewModel.observe(jobNumber) }
     val uiState by uiStateFlow.collectAsState()
     val job = uiState.job
+    val draftStore = remember(context) { MaterialFormDraftStore(context) }
 
     var showEditDescription by remember { mutableStateOf(false) }
     var showEditJobNumber by remember { mutableStateOf(false) }
@@ -81,6 +88,27 @@ fun JobDetailScreen(
     var descriptionDraft by remember { mutableStateOf("") }
     var jobNumberDraft by remember { mutableStateOf("") }
     var materialToDelete by remember { mutableStateOf<MaterialItem?>(null) }
+    var newReportDraft by remember(jobNumber) { mutableStateOf<MaterialItem?>(null) }
+
+    fun refreshDraftSummary() {
+        newReportDraft = draftStore.load(draftStore.draftKey(jobNumber, null))
+    }
+
+    LaunchedEffect(jobNumber) {
+        refreshDraftSummary()
+    }
+
+    DisposableEffect(lifecycleOwner, jobNumber) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshDraftSummary()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(showEditDescription, job?.description) {
         if (showEditDescription && job != null) {
@@ -181,6 +209,49 @@ fun JobDetailScreen(
             Text("Add Receiving Report")
         }
 
+        newReportDraft?.let { draft ->
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { onOpenDraft(jobNumber) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialGuardianColors.EditButton,
+                        contentColor = MaterialGuardianColors.EditButtonText
+                    )
+                ) {
+                    Text("Resume Draft")
+                }
+                TextButton(
+                    onClick = {
+                        draftStore.clearImmediately(draftStore.draftKey(jobNumber, null))
+                        refreshDraftSummary()
+                    }
+                ) {
+                    Text("Delete Draft", color = MaterialGuardianColors.DeleteButton)
+                }
+            }
+
+            val draftSummary = draft.description.ifBlank { "Unsaved receiving report draft" }
+            Text(
+                text = draftSummary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialGuardianColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(28.dp))
 
         Text(
@@ -265,24 +336,47 @@ fun JobDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = {
-                    val shared = shareLatestExport(context, job.exportPath)
-                    if (!shared) {
-                        exportError = "Could not share the latest exported packet PDFs on this device."
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .fillMaxWidth(0.78f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialGuardianColors.PrimaryButton,
-                    contentColor = MaterialGuardianColors.PrimaryButtonText
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Share Latest Export")
+                Button(
+                    onClick = {
+                        val shared = shareLatestExportPdfs(context, job.exportPath)
+                        if (!shared) {
+                            exportError = "Could not share the latest exported packet PDFs on this device."
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialGuardianColors.PrimaryButton,
+                        contentColor = MaterialGuardianColors.PrimaryButtonText
+                    )
+                ) {
+                    Text("Share PDFs")
+                }
+
+                Button(
+                    onClick = {
+                        val shared = shareLatestExportZip(context, job.exportPath)
+                        if (!shared) {
+                            exportError = "Could not share the latest exported ZIP on this device."
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialGuardianColors.EditButton,
+                        contentColor = MaterialGuardianColors.EditButtonText
+                    )
+                ) {
+                    Text("Share ZIP")
+                }
             }
         }
     }
@@ -519,42 +613,42 @@ private fun launchIfSupported(context: Context, intent: Intent): Boolean {
     }.getOrDefault(false)
 }
 
-private fun shareLatestExport(context: Context, exportPath: String): Boolean {
+private fun shareLatestExportPdfs(context: Context, exportPath: String): Boolean {
     val packetFiles = latestExportPacketFiles(context, exportPath)
     val authority = "${context.packageName}.fileprovider"
-    if (packetFiles.isNotEmpty()) {
-        val uris = ArrayList<Uri>(packetFiles.size)
-        var clipData: ClipData? = null
-        packetFiles.forEach { packetFile ->
-            val uri = FileProvider.getUriForFile(context, authority, packetFile)
-            uris += uri
-            clipData = clipData?.apply { addItem(ClipData.Item(uri)) }
-                ?: ClipData.newUri(context.contentResolver, packetFile.name, uri)
-        }
-
-        val shareFilesIntent = if (uris.size == 1) {
-            Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
-                putExtra(Intent.EXTRA_STREAM, uris.first())
-            }
-        } else {
-            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-                type = "application/pdf"
-                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-            }
-        }.apply {
-            clipData?.let { this.clipData = it }
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-        val chooserIntent = Intent.createChooser(shareFilesIntent, "Share latest export files").apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        if (launchIfSupported(context, chooserIntent)) {
-            return true
-        }
+    if (packetFiles.isEmpty()) return false
+    val uris = ArrayList<Uri>(packetFiles.size)
+    var clipData: ClipData? = null
+    packetFiles.forEach { packetFile ->
+        val uri = FileProvider.getUriForFile(context, authority, packetFile)
+        uris += uri
+        clipData = clipData?.apply { addItem(ClipData.Item(uri)) }
+            ?: ClipData.newUri(context.contentResolver, packetFile.name, uri)
     }
 
+    val shareFilesIntent = if (uris.size == 1) {
+        Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uris.first())
+        }
+    } else {
+        Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "application/pdf"
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+        }
+    }.apply {
+        clipData?.let { this.clipData = it }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    val chooserIntent = Intent.createChooser(shareFilesIntent, "Share latest export files").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return launchIfSupported(context, chooserIntent)
+}
+
+private fun shareLatestExportZip(context: Context, exportPath: String): Boolean {
+    val authority = "${context.packageName}.fileprovider"
     val zipFile = latestExportShareBundle(context, exportPath) ?: return false
     val uri = FileProvider.getUriForFile(context, authority, zipFile)
 

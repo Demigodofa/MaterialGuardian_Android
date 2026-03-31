@@ -24,6 +24,11 @@ Use the Gradle wrapper from the repo root:
 Android Studio is the default workflow; Java 17 and Android SDK 36+ are required.
 For product/UX changes, read `docs/welders_helper_suite.md` before proposing a new shell or interaction pattern.
 
+## Review-First Workflow
+- When rereading this repo, looking for fixes, weighing adjustment ideas, making implementation decisions, checking live outputs, or confirming the app/process actually runs, treat that work as part of the code-review validation pass.
+- Use regular Codex execution for the implementation/editing phase after the review pass identifies the needed change.
+- This is a token-discipline preference, not a ban on real local checks: runtime checks still happen, but they should be grouped under the review umbrella when possible.
+
 ## Coding Style & Naming Conventions
 - Kotlin source uses standard Android/Kotlin style: 4-space indentation, trailing commas where helpful, and clear Compose function naming.
 - Classes/Composables: `PascalCase` (e.g., `JobDetailScreen`).
@@ -57,6 +62,10 @@ For product/UX changes, read `docs/welders_helper_suite.md` before proposing a n
   - one job folder under `Downloads/MaterialGuardian/<job>/`
   - one packet PDF per material under `material_packets/`
   - share flow uses a bundled zip from app-private `exports/` storage because SharePoint may not appear for multi-file PDF shares even when installed.
+- If a debug build suddenly crashes on launch with Room-generated classes missing (for example `AppDatabase_Impl does not exist`) after mixed test/build/install passes, treat it as a stale artifact problem first and run a full `clean installDebug` before debugging app code.
+- For Play uploads from this repo, `AGENTS.md` is the practical tips/tricks/wins/losses file; keep durable Android release and device-validation notes here instead of scattering one-off memory files.
+- Release uploads now include native symbol tables through `ndk.debugSymbolLevel = "symbol_table"` in `app/build.gradle.kts`, which addresses Play Console's native debug symbol warning for bundles that ship native libraries.
+- If `isMinifyEnabled = false` in the release build, the Play deobfuscation warning is informational only because there is no R8/ProGuard mapping file to upload.
 
 ## Release Handoff
 - Start any fresh release-readiness session by reading `docs/release_handoff.md` and `docs/play_release.md`.
