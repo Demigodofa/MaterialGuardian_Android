@@ -24,6 +24,9 @@ interface MaterialDao {
     @Query("UPDATE materials SET jobNumber = :newJobNumber WHERE jobNumber = :oldJobNumber")
     suspend fun updateJobNumber(oldJobNumber: String, newJobNumber: String)
 
+    @Query("DELETE FROM materials WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM materials WHERE jobNumber = :jobNumber")
     suspend fun deleteForJob(jobNumber: String)
 }

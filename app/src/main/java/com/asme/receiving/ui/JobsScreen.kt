@@ -131,7 +131,7 @@ fun JobsScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         LandingLinkButton(
-                            label = "Customization / Logo",
+                            label = "Customization",
                             onClick = onCustomizationClick,
                             modifier = Modifier.weight(1f)
                         )

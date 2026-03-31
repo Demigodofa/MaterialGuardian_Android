@@ -116,6 +116,7 @@ fun MaterialFormScreen(
     val draftStore = remember(context) { MaterialFormDraftStore(context) }
     val customization = remember(context) { CustomizationRepository(context).load() }
     val draftKey = remember(jobNumber, materialId) { draftStore.draftKey(jobNumber, materialId) }
+    var suppressDraftPersistence by remember(draftKey) { mutableStateOf(false) }
 
     var materialDescription by remember { mutableStateOf("") }
     var poNumber by remember { mutableStateOf("") }
@@ -443,7 +444,7 @@ fun MaterialFormScreen(
         )
     }
 
-    val shouldPersistDraft = materialId != null || isDirty
+    val shouldPersistDraft = !suppressDraftPersistence && (materialId != null || isDirty)
     val latestDraftSnapshot by rememberUpdatedState(newValue = buildDraftSnapshot())
     val latestShouldPersistDraft by rememberUpdatedState(newValue = shouldPersistDraft)
 
@@ -810,7 +811,8 @@ fun MaterialFormScreen(
             LabeledField("A/SA", modifier = Modifier.weight(0.9f)) {
                 DropdownField(
                     value = specificationPrefix,
-                    options = listOf("A", "SA"),
+                    options = listOf("", "A", "SA"),
+                    optionLabel = { option -> if (option.isBlank()) "Blank" else option },
                     placeholder = ""
                 ) { specificationPrefix = it }
             }
@@ -900,9 +902,9 @@ fun MaterialFormScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LabeledField("Width", modifier = Modifier.weight(1f)) {
+            LabeledField("Width", modifier = Modifier.weight(0.9f)) {
                 OutlinedTextField(
                     value = width,
                     onValueChange = { width = it.take(10) },
@@ -910,7 +912,7 @@ fun MaterialFormScreen(
                     singleLine = true
                 )
             }
-            LabeledField("Length", modifier = Modifier.weight(1f)) {
+            LabeledField("Length", modifier = Modifier.weight(0.9f)) {
                 OutlinedTextField(
                     value = length,
                     onValueChange = { length = it.take(10) },
@@ -918,7 +920,7 @@ fun MaterialFormScreen(
                     singleLine = true
                 )
             }
-            LabeledField("Diameter", modifier = Modifier.weight(1f)) {
+            LabeledField("Diameter", modifier = Modifier.weight(0.85f)) {
                 OutlinedTextField(
                     value = diameter,
                     onValueChange = { diameter = it.take(10) },
@@ -927,11 +929,11 @@ fun MaterialFormScreen(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.End)
                 )
             }
-            LabeledField("ID/OD", modifier = Modifier.weight(0.7f)) {
+            LabeledField("ID/OD", modifier = Modifier.weight(0.8f)) {
                 DropdownField(
                     value = diameterType,
                     options = listOf("", "O.D.", "I.D."),
-                    optionLabel = { option -> if (option.isBlank()) "Clear" else option },
+                    optionLabel = { option -> if (option.isBlank()) "None" else option },
                     placeholder = ""
                 ) { diameterType = it }
             }
@@ -954,7 +956,7 @@ fun MaterialFormScreen(
                     DropdownField(
                         value = b16DimensionsAcceptable,
                         options = listOf("", "Yes", "No"),
-                        optionLabel = { option -> if (option.isBlank()) "Clear" else option },
+                        optionLabel = { option -> if (option.isBlank()) "None" else option },
                         placeholder = ""
                     ) { b16DimensionsAcceptable = it }
                 }
@@ -1260,8 +1262,9 @@ fun MaterialFormScreen(
                       pdfStoragePath = pdfStoragePath,
                       photoPaths = photoPaths,
                       scanPaths = scanCaptures.map { encodeScanCapture(it) }
-                  )
+                    )
                     result.onSuccess {
+                        suppressDraftPersistence = true
                         draftStore.clearImmediately(draftKey)
                         showSaveSuccess = true
                     }
@@ -1290,6 +1293,7 @@ fun MaterialFormScreen(
             },
             onDeleteDraft = {
                 showDiscardDialog = false
+                suppressDraftPersistence = true
                 draftStore.clearImmediately(draftKey)
                 onNavigateBack()
             },
@@ -1540,18 +1544,26 @@ private fun DropdownField(
                 .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
                 .background(Color.White, RoundedCornerShape(10.dp))
                 .clickable(enabled = enabled) { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 14.dp)
+                .padding(horizontal = 10.dp, vertical = 12.dp)
         ) {
-            val displayText = if (value.isBlank()) placeholder else value
-            Text(
-                text = displayText,
-                color = if (value.isBlank()) Color(0xFF9CA3AF) else Color(0xFF1F2937)
-            )
-            Icon(
-                imageVector = Icons.Filled.ArrowDropDown,
-                contentDescription = null,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val displayText = if (value.isBlank()) placeholder else value
+                Text(
+                    text = displayText,
+                    color = if (value.isBlank()) Color(0xFF9CA3AF) else Color(0xFF1F2937),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    imageVector = Icons.Filled.ArrowDropDown,
+                    contentDescription = null
+                )
+            }
         }
         DropdownMenu(
             expanded = expanded,
@@ -1706,7 +1718,7 @@ private fun ThumbnailRow(
             if (path != null) {
                 val isPdf = path.endsWith(".pdf", ignoreCase = true)
                 val bitmap = remember(path) {
-                    if (isPdf) null else BitmapFactory.decodeFile(path)
+                    if (isPdf) null else decodeOrientedBitmap(path)
                 }
                 if (bitmap != null) {
                     Image(
@@ -1751,17 +1763,25 @@ private fun PhotoFilePreview(
     path: String,
     emptyLabel: String
 ) {
-    val bitmap = remember(path) { BitmapFactory.decodeFile(path) }
+    val bitmap = remember(path) { decodeOrientedBitmap(path) }
     if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = "Preview",
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp)
+                .background(Color.White, RoundedCornerShape(12.dp))
                 .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
-        )
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Preview",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
     } else {
         Box(
             modifier = Modifier

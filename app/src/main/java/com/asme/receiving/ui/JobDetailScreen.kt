@@ -53,6 +53,7 @@ import com.asme.receiving.data.export.ExportService
 import com.asme.receiving.ui.components.MaterialGuardianHeader
 import java.io.File
 import java.io.FileInputStream
+import java.util.ArrayList
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.launch
@@ -79,6 +80,7 @@ fun JobDetailScreen(
     var exportSuccess by remember { mutableStateOf<ExportResult?>(null) }
     var descriptionDraft by remember { mutableStateOf("") }
     var jobNumberDraft by remember { mutableStateOf("") }
+    var materialToDelete by remember { mutableStateOf<MaterialItem?>(null) }
 
     LaunchedEffect(showEditDescription, job?.description) {
         if (showEditDescription && job != null) {
@@ -196,7 +198,8 @@ fun JobDetailScreen(
             items(uiState.materials) { material ->
                 MaterialSummaryRow(
                     material = material,
-                    onClick = { onEditMaterial(jobNumber, material.id) }
+                    onClick = { onEditMaterial(jobNumber, material.id) },
+                    onDelete = { materialToDelete = material }
                 )
             }
         }
@@ -412,6 +415,33 @@ fun JobDetailScreen(
             }
         )
     }
+
+    materialToDelete?.let { material ->
+        AlertDialog(
+            onDismissRequest = { materialToDelete = null },
+            title = { Text("Delete receiving report?") },
+            text = {
+                Text(
+                    "Delete ${material.description.ifBlank { "this material" }} from this job?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        viewModel.deleteMaterial(material.id)
+                        materialToDelete = null
+                    }
+                }) {
+                    Text("Delete", color = MaterialGuardianColors.DeleteButton)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { materialToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 private fun buildExportSuccessMessage(result: ExportResult): String {
@@ -490,8 +520,42 @@ private fun launchIfSupported(context: Context, intent: Intent): Boolean {
 }
 
 private fun shareLatestExport(context: Context, exportPath: String): Boolean {
-    val zipFile = latestExportShareBundle(context, exportPath) ?: return false
+    val packetFiles = latestExportPacketFiles(context, exportPath)
     val authority = "${context.packageName}.fileprovider"
+    if (packetFiles.isNotEmpty()) {
+        val uris = ArrayList<Uri>(packetFiles.size)
+        var clipData: ClipData? = null
+        packetFiles.forEach { packetFile ->
+            val uri = FileProvider.getUriForFile(context, authority, packetFile)
+            uris += uri
+            clipData = clipData?.apply { addItem(ClipData.Item(uri)) }
+                ?: ClipData.newUri(context.contentResolver, packetFile.name, uri)
+        }
+
+        val shareFilesIntent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uris.first())
+            }
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "application/pdf"
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }
+        }.apply {
+            clipData?.let { this.clipData = it }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        val chooserIntent = Intent.createChooser(shareFilesIntent, "Share latest export files").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (launchIfSupported(context, chooserIntent)) {
+            return true
+        }
+    }
+
+    val zipFile = latestExportShareBundle(context, exportPath) ?: return false
     val uri = FileProvider.getUriForFile(context, authority, zipFile)
 
     val intent = Intent(Intent.ACTION_SEND).apply {
@@ -507,13 +571,18 @@ private fun shareLatestExport(context: Context, exportPath: String): Boolean {
     return launchIfSupported(context, chooserIntent)
 }
 
-private fun latestExportShareBundle(context: Context, exportPath: String): File? {
-    val exportRoot = latestInternalExportRoot(context, exportPath) ?: return null
-    val packetFiles = exportRoot.resolve("material_packets")
+private fun latestExportPacketFiles(context: Context, exportPath: String): List<File> {
+    val exportRoot = latestInternalExportRoot(context, exportPath) ?: return emptyList()
+    return exportRoot.resolve("material_packets")
         .listFiles()
         ?.filter { it.isFile && it.extension.equals("pdf", ignoreCase = true) }
         ?.sortedBy { it.name }
         .orEmpty()
+}
+
+private fun latestExportShareBundle(context: Context, exportPath: String): File? {
+    val exportRoot = latestInternalExportRoot(context, exportPath) ?: return null
+    val packetFiles = latestExportPacketFiles(context, exportPath)
     if (packetFiles.isEmpty()) {
         return null
     }
@@ -552,24 +621,34 @@ private fun latestInternalExportRoot(context: Context, exportPath: String): File
 }
 
 @Composable
-private fun MaterialSummaryRow(material: MaterialItem, onClick: () -> Unit) {
+private fun MaterialSummaryRow(
+    material: MaterialItem,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .background(MaterialGuardianColors.CardBackground, RoundedCornerShape(10.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = material.description.ifBlank { "Material" },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialGuardianColors.TextPrimary
-        )
-        Text(
-            text = material.quantity.ifBlank { "-" },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialGuardianColors.TextSecondary
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = material.description.ifBlank { "Material" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialGuardianColors.TextPrimary
+            )
+            Text(
+                text = "Qty ${material.quantity.ifBlank { "-" }}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialGuardianColors.TextSecondary
+            )
+        }
+        TextButton(onClick = onDelete) {
+            Text("Delete", color = MaterialGuardianColors.DeleteButton)
+        }
     }
 }

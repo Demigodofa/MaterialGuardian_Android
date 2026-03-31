@@ -31,16 +31,16 @@ fun SplashScreen(onTimeout: () -> Unit) {
     LaunchedEffect(Unit) {
         phase = 0
         alpha.snapTo(0f)
-        alpha.animateTo(1f, animationSpec = tween(700))
-        delay(900)
-        alpha.animateTo(0f, animationSpec = tween(500))
-        delay(300)
+        alpha.animateTo(1f, animationSpec = tween(350))
+        delay(450)
+        alpha.animateTo(0f, animationSpec = tween(250))
+        delay(150)
         phase = 1
         alpha.snapTo(0f)
-        alpha.animateTo(1f, animationSpec = tween(900))
-        delay(1400)
-        alpha.animateTo(0f, animationSpec = tween(700))
-        delay(200)
+        alpha.animateTo(1f, animationSpec = tween(450))
+        delay(700)
+        alpha.animateTo(0f, animationSpec = tween(350))
+        delay(100)
         onTimeout()
     }
 

@@ -32,6 +32,11 @@ class MaterialRepository(
         materialDao.updateJobNumber(oldJobNumber, newJobNumber)
     }
 
+    suspend fun deleteMaterial(id: String) {
+        if (id.isBlank()) return
+        materialDao.deleteById(id)
+    }
+
     suspend fun deleteForJob(jobNumber: String) {
         materialDao.deleteForJob(jobNumber)
     }

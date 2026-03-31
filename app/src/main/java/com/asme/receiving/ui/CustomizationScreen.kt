@@ -163,7 +163,7 @@ fun CustomizationScreen(
         Spacer(modifier = Modifier.height(28.dp))
 
         PreferenceSection(
-            title = "Report Logo",
+            title = "Add Company Logo to Reports",
             body = "Upload a logo for exported receiving reports. The app will resize and normalize the image automatically."
         )
 

@@ -42,6 +42,10 @@ class JobDetailViewModel(
         return jobRepository.renameJob(oldJobNumber, newJobNumber)
     }
 
+    suspend fun deleteMaterial(id: String) {
+        materialRepository.deleteMaterial(id)
+    }
+
     suspend fun markExported(jobNumber: String, exportPath: String) {
         jobRepository.updateExportStatus(jobNumber, exportPath)
     }
