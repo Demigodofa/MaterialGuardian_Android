@@ -27,6 +27,7 @@ Current state:
   - `C:\Users\KevinPenfield\.codex\skills\kevin-codex\`
   - `docs/release_handoff.md`
   - `docs/monetization_backend_handoff.md`
+  - `docs/next_phase_product_plan_2026-03-31.md`
   - `docs/google_play_submission.md`
   - `www/privacy-policy.html`
   - Android UI/assets under `app/`, `assets/`, and `www/`
@@ -40,6 +41,7 @@ Recommended iOS handoff inputs:
 - export behavior and folder/package rules
 - local-first data model and validation rules
 - the newer Android customization/preferences behavior, optional receiving sections, logo workflow, and launch/splash expectations
+- the next-phase draft/export/customization plan in `docs/next_phase_product_plan_2026-03-31.md`
 - privacy policy and store-listing language where still applicable
 - icons, colors, and suite branding references
 

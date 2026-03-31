@@ -99,6 +99,15 @@ If backend sync is not present, login alone will not restore local work on a sec
 - do not build final admin/subscription UX around Apple-only assumptions
 - do not assume Android access should be blocked if the original purchase was on iPhone
 
+## Near-term non-backend parity notes
+
+Before backend work lands, the mobile product direction also now expects:
+
+- explicit draft access instead of letting the main `Add Material` action reopen the last abandoned draft
+- both `Share PDFs` and `Share ZIP` export options for business workflows like SharePoint
+- customization-driven default QC printed names
+- an optional saved QC inspector signature flow for repeated report entry
+
 ## Recommended pickup for future Apple/backend session
 
 1. read `docs/monetization_backend_handoff.md`

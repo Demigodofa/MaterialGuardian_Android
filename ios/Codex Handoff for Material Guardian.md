@@ -32,8 +32,9 @@ Last updated: 2026-03-31
 9. `docs/welders_helper_suite.md`
 10. `www/privacy-policy.html`
 11. `docs/monetization_backend_handoff.md`
-12. `ios/android-preferences-change-notes-2026-03-30.md`
-13. `ios/apple-backend-coordination-2026-03-30.md`
+12. `docs/next_phase_product_plan_2026-03-31.md`
+13. `ios/android-preferences-change-notes-2026-03-30.md`
+14. `ios/apple-backend-coordination-2026-03-30.md`
 
 ## Review-first workflow
 
@@ -91,6 +92,7 @@ Last updated: 2026-03-31
 - Photo previews were corrected to respect image orientation while exported photos already retained proper orientation.
 - Export PDF layout was tightened repeatedly to keep the receiving report on one page and keep lower sections aligned.
 - Android launch behavior was cleaned so the app should go straight into the intended splash flow instead of briefly showing the launcher icon first.
+- The next agreed product pass includes explicit draft access, explicit PDF-vs-ZIP sharing, and QC-name/signature defaults driven from customization.
 
 ## Important Android details to preserve when porting
 

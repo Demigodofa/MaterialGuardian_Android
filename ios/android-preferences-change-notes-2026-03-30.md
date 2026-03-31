@@ -33,3 +33,17 @@ These notes are for the in-progress iOS build so feature parity stays aligned wi
 
 - Export should omit disabled/unused B16 and surface-finish sections cleanly instead of leaving blank placeholder rows.
 - The report logo should appear in the receiving report header when configured.
+
+## Follow-up customization/product direction
+
+- Android is expected to add default printed-name fields for:
+  - `QC Inspector`
+  - `QC Manager`
+- Android is also expected to add an optional saved default QC inspector signature that can be applied quickly from the receiving form.
+- Export/share should keep both explicit choices:
+  - `Share PDFs`
+  - `Share ZIP`
+- Draft behavior is expected to become:
+  - `Add Material` always opens blank
+  - unsaved work is still autosaved
+  - drafts are reopened through an explicit draft entry point, not by reusing the main create action
