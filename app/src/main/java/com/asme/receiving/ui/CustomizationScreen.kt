@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,6 +52,7 @@ fun CustomizationScreen(
     repository: CustomizationRepository = CustomizationRepository()
 ) {
     val initialState = remember { repository.load() }
+    val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     var enableB16Fields by remember { mutableStateOf(initialState.enableB16Fields) }
     var enableSurfaceFinish by remember { mutableStateOf(initialState.enableSurfaceFinish) }
     var surfaceFinishUnit by remember { mutableStateOf(initialState.surfaceFinishUnit) }
@@ -263,7 +267,7 @@ fun CustomizationScreen(
             Text("Save Customization")
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp + navigationBottomPadding))
     }
 }
 
