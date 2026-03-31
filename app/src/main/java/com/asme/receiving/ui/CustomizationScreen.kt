@@ -71,7 +71,10 @@ fun CustomizationScreen(
         saveError = null
         saveMessage = null
         repository.importCompanyLogo(uri)
-            .onSuccess { companyLogoPath = it }
+            .onSuccess {
+                companyLogoPath = it
+                saveMessage = "Logo imported."
+            }
             .onFailure { saveError = it.message ?: "Unable to import logo." }
     }
 
@@ -161,7 +164,7 @@ fun CustomizationScreen(
 
         PreferenceSection(
             title = "Report Logo",
-            body = "Upload a PNG or JPEG logo for exported receiving reports. The app will resize it automatically to keep import friction low."
+            body = "Upload a logo for exported receiving reports. The app will resize and normalize the image automatically."
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -212,7 +215,7 @@ fun CustomizationScreen(
                         onClick = {
                             repository.clearCompanyLogo()
                             companyLogoPath = ""
-                            saveMessage = null
+                            saveMessage = "Logo removed."
                         }
                     ) {
                         Text("Remove Logo")

@@ -38,26 +38,18 @@ class CustomizationRepository(
     fun importCompanyLogo(sourceUri: Uri): Result<String> {
         return runCatching {
             val mimeType = context.contentResolver.getType(sourceUri)
-            if (mimeType != null && mimeType != "image/png" && mimeType != "image/jpeg") {
-                error("Please select a PNG or JPEG logo.")
+            if (mimeType != null && !mimeType.startsWith("image/")) {
+                error("Please select an image file for the report logo.")
             }
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, bounds)
-            } ?: error("Unable to read the selected image.")
+            val bounds = decodeBounds(context, sourceUri) ?: error("Unable to read the selected image.")
 
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                 error("Unsupported image file.")
             }
 
             val sampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight, MAX_LOGO_DIMENSION)
-            val bitmap = context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                BitmapFactory.decodeStream(
-                    input,
-                    null,
-                    BitmapFactory.Options().apply { inSampleSize = sampleSize }
-                )
-            } ?: error("Unable to decode the selected image.")
+            val bitmap = decodeBitmap(context, sourceUri, sampleSize)
+                ?: error("Unable to decode the selected image.")
 
             val normalized = bitmap.scaleDownTo(MAX_LOGO_DIMENSION)
             val logoDirectory = File(context.filesDir, "customization").also { it.mkdirs() }
@@ -69,6 +61,9 @@ class CustomizationRepository(
             if (normalized !== bitmap) {
                 normalized.recycle()
             }
+            preferences.edit()
+                .putString(KEY_COMPANY_LOGO_PATH, outputFile.absolutePath)
+                .apply()
             outputFile.absolutePath
         }
     }
@@ -77,6 +72,9 @@ class CustomizationRepository(
         load().companyLogoPath.takeIf { it.isNotBlank() }?.let { path ->
             runCatching { File(path).delete() }
         }
+        preferences.edit()
+            .putString(KEY_COMPANY_LOGO_PATH, "")
+            .apply()
     }
 
     companion object {
@@ -86,6 +84,34 @@ class CustomizationRepository(
         private const val KEY_SURFACE_FINISH_UNIT = "surface_finish_unit"
         private const val KEY_COMPANY_LOGO_PATH = "company_logo_path"
         private const val MAX_LOGO_DIMENSION = 1200
+    }
+}
+
+private fun decodeBounds(context: Context, sourceUri: Uri): BitmapFactory.Options? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val decodedFromStream = context.contentResolver.openInputStream(sourceUri)?.use { input ->
+        BitmapFactory.decodeStream(input, null, bounds)
+        bounds.outWidth > 0 && bounds.outHeight > 0
+    } ?: false
+    if (decodedFromStream) {
+        return bounds
+    }
+    return context.contentResolver.openFileDescriptor(sourceUri, "r")?.use { descriptor ->
+        BitmapFactory.decodeFileDescriptor(descriptor.fileDescriptor, null, bounds)
+        bounds.takeIf { it.outWidth > 0 && it.outHeight > 0 }
+    }
+}
+
+private fun decodeBitmap(context: Context, sourceUri: Uri, sampleSize: Int): Bitmap? {
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    val bitmapFromStream = context.contentResolver.openInputStream(sourceUri)?.use { input ->
+        BitmapFactory.decodeStream(input, null, options)
+    }
+    if (bitmapFromStream != null) {
+        return bitmapFromStream
+    }
+    return context.contentResolver.openFileDescriptor(sourceUri, "r")?.use { descriptor ->
+        BitmapFactory.decodeFileDescriptor(descriptor.fileDescriptor, null, options)
     }
 }
 

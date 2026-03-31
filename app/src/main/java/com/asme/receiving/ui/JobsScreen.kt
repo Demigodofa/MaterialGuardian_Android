@@ -27,6 +27,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -127,14 +128,18 @@ fun JobsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        TextButton(onClick = onCustomizationClick) {
-                            Text("Customization")
-                        }
-                        TextButton(onClick = onPrivacyPolicyClick) {
-                            Text("Privacy Policy")
-                        }
+                        LandingLinkButton(
+                            label = "Customization / Logo",
+                            onClick = onCustomizationClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                        LandingLinkButton(
+                            label = "Privacy Policy",
+                            onClick = onPrivacyPolicyClick,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -223,6 +228,31 @@ fun JobsScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun LandingLinkButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialGuardianColors.CardBackground,
+            contentColor = MaterialGuardianColors.Link
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialGuardianColors.Divider)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            textDecoration = TextDecoration.Underline
         )
     }
 }
