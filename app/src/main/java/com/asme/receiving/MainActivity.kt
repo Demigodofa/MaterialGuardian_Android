@@ -19,6 +19,7 @@ import com.asme.receiving.ui.theme.MaterialGuardianTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.Theme_MaterialGuardian)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

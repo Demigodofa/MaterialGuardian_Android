@@ -78,6 +78,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.content.FileProvider
@@ -352,18 +353,66 @@ fun MaterialFormScreen(
         scanCaptures.addAll(decodeScanCaptures(material.scanPaths))
     }
 
+    fun resetNewMaterialState() {
+        materialDescription = ""
+        poNumber = ""
+        vendor = ""
+        quantity = ""
+        productType = ""
+        specificationPrefix = ""
+        gradeType = ""
+        fittingStandard = "N/A"
+        fittingSuffix = ""
+        dimensionUnit = "imperial"
+        thickness1 = ""
+        thickness2 = ""
+        thickness3 = ""
+        thickness4 = ""
+        width = ""
+        length = ""
+        diameter = ""
+        diameterType = ""
+        visualInspectionAcceptable = true
+        b16DimensionsAcceptable = ""
+        surfaceFinishCode = ""
+        surfaceFinishReading = ""
+        surfaceFinishUnit = ""
+        markings = ""
+        markingAcceptable = true
+        markingAcceptableNa = false
+        mtrAcceptable = true
+        mtrAcceptableNa = false
+        acceptanceStatus = "accept"
+        comments = ""
+        qcInitials = ""
+        qcDate = LocalDate.now()
+        qcSignaturePath = ""
+        materialApproval = "approved"
+        qcManager = ""
+        qcManagerInitials = ""
+        qcManagerDate = LocalDate.now()
+        qcManagerSignaturePath = ""
+        receivedAt = System.currentTimeMillis()
+        offloadStatus = "pending"
+        pdfStatus = "pending"
+        pdfStoragePath = ""
+        photoPaths.clear()
+        scanCaptures.clear()
+        saveError = null
+        showSaveSuccess = false
+    }
+
     var restoredDraftOrRecord by remember(draftKey) { mutableStateOf(false) }
 
     LaunchedEffect(draftKey, materialId, uiState.loading, uiState.material?.id) {
         if (restoredDraftOrRecord) return@LaunchedEffect
-        val draft = draftStore.load(draftKey)
         if (materialId.isNullOrBlank()) {
-            if (draft != null) {
-                restoreMaterialState(draft)
-            }
+            draftStore.clearImmediately(draftKey)
+            resetNewMaterialState()
             restoredDraftOrRecord = true
             return@LaunchedEffect
         }
+        val draft = draftStore.load(draftKey)
         if (uiState.loading) return@LaunchedEffect
         val source = draft ?: uiState.material
         if (source != null) {
@@ -762,7 +811,9 @@ fun MaterialFormScreen(
             OutlinedTextField(
                 value = materialDescription,
                 onValueChange = { materialDescription = it.take(40) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
                 singleLine = true
             )
         }
@@ -775,7 +826,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = poNumber,
                     onValueChange = { poNumber = it.take(20) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -783,7 +836,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = vendor,
                     onValueChange = { vendor = it.take(20) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -797,7 +852,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { quantity = it.take(6) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -822,23 +879,31 @@ fun MaterialFormScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            LabeledField("Spec/Grade", modifier = Modifier.weight(1f)) {
+            LabeledField("Spec/Grade", modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = gradeType,
                     onValueChange = { gradeType = it.take(12) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
-            if (showB16Fields) {
-                LabeledField("Fitting", modifier = Modifier.weight(0.8f)) {
+        }
+
+        if (showB16Fields) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                LabeledField("Fitting", modifier = Modifier.weight(0.9f)) {
                     DropdownField(
                         value = fittingStandard,
                         options = listOf("N/A", "B16"),
                         placeholder = "N/A"
                     ) { fittingStandard = it }
                 }
-                LabeledField("", modifier = Modifier.weight(0.6f)) {
+                LabeledField("B16 Type", modifier = Modifier.weight(0.8f)) {
                     DropdownField(
                         value = fittingSuffix,
                         options = listOf("5", "9", "11", "34"),
@@ -870,7 +935,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = thickness1,
                     onValueChange = { thickness1 = it.take(10) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -878,7 +945,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = thickness2,
                     onValueChange = { thickness2 = it.take(10) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -886,7 +955,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = thickness3,
                     onValueChange = { thickness3 = it.take(10) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -894,7 +965,9 @@ fun MaterialFormScreen(
                 OutlinedTextField(
                     value = thickness4,
                     onValueChange = { thickness4 = it.take(10) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true
                 )
             }
@@ -920,16 +993,18 @@ fun MaterialFormScreen(
                     singleLine = true
                 )
             }
-            LabeledField("Diameter", modifier = Modifier.weight(0.85f)) {
+            LabeledField("Diameter", modifier = Modifier.weight(0.72f)) {
                 OutlinedTextField(
                     value = diameter,
                     onValueChange = { diameter = it.take(10) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.End)
                 )
             }
-            LabeledField("ID/OD", modifier = Modifier.weight(0.8f)) {
+            LabeledField("ID/OD", modifier = Modifier.weight(1.08f)) {
                 DropdownField(
                     value = diameterType,
                     options = listOf("", "O.D.", "I.D."),
@@ -939,27 +1014,22 @@ fun MaterialFormScreen(
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LabeledField("Visual inspection acceptable", modifier = Modifier.weight(1.2f)) {
-                YesNoToggle(
-                    yesSelected = visualInspectionAcceptable,
-                    onYes = { visualInspectionAcceptable = true },
-                    onNo = { visualInspectionAcceptable = false }
-                )
-            }
+        LabeledField("Visual inspection acceptable") {
+            YesNoToggle(
+                yesSelected = visualInspectionAcceptable,
+                onYes = { visualInspectionAcceptable = true },
+                onNo = { visualInspectionAcceptable = false }
+            )
+        }
 
-            if (showB16Fields) {
-                LabeledField("B16 Dimensions", modifier = Modifier.weight(0.8f)) {
-                    DropdownField(
-                        value = b16DimensionsAcceptable,
-                        options = listOf("", "Yes", "No"),
-                        optionLabel = { option -> if (option.isBlank()) "None" else option },
-                        placeholder = ""
-                    ) { b16DimensionsAcceptable = it }
-                }
+        if (showB16Fields) {
+            LabeledField("B16 Dimensions") {
+                DropdownField(
+                    value = b16DimensionsAcceptable,
+                    options = listOf("", "Yes", "No"),
+                    optionLabel = { option -> if (option.isBlank()) "None" else option },
+                    placeholder = ""
+                ) { b16DimensionsAcceptable = it }
             }
         }
 
@@ -968,7 +1038,7 @@ fun MaterialFormScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                LabeledField("Surface Finish", modifier = Modifier.weight(0.8f)) {
+                LabeledField("Surface Finish", modifier = Modifier.weight(1f)) {
                     DropdownField(
                         value = surfaceFinishCode,
                         options = SurfaceFinishCode.all,
@@ -976,25 +1046,27 @@ fun MaterialFormScreen(
                         placeholder = ""
                     ) { surfaceFinishCode = it }
                 }
+            }
 
-                LabeledField("Actual Surface Finish Reading", modifier = Modifier.weight(1.2f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = surfaceFinishReading,
-                            onValueChange = { surfaceFinishReading = sanitizeFourDecimalInput(it) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Text(
-                            text = SurfaceFinishUnit.label(resolvedSurfaceFinishUnit),
-                            color = MaterialGuardianColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+            LabeledField("Actual Surface Finish Reading") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = surfaceFinishReading,
+                        onValueChange = { surfaceFinishReading = sanitizeFourDecimalInput(it) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        singleLine = true
+                    )
+                    Text(
+                        text = SurfaceFinishUnit.label(resolvedSurfaceFinishUnit),
+                        color = MaterialGuardianColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }
@@ -1080,7 +1152,9 @@ fun MaterialFormScreen(
                     OutlinedTextField(
                         value = qcInitials,
                         onValueChange = { qcInitials = it.take(20) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
                         singleLine = true
                     )
                     DateField(qcDate, modifier = Modifier.weight(0.7f)) { qcDate = it }
@@ -1119,7 +1193,9 @@ fun MaterialFormScreen(
                     OutlinedTextField(
                         value = qcManager,
                         onValueChange = { qcManager = it.take(20) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
                         singleLine = true
                     )
                     DateField(qcManagerDate, modifier = Modifier.weight(0.7f)) { qcManagerDate = it }
@@ -1536,6 +1612,7 @@ private fun DropdownField(
 
     Box {
         Box(
+            contentAlignment = Alignment.CenterStart,
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates ->
@@ -1544,7 +1621,8 @@ private fun DropdownField(
                 .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
                 .background(Color.White, RoundedCornerShape(10.dp))
                 .clickable(enabled = enabled) { expanded = true }
-                .padding(horizontal = 10.dp, vertical = 12.dp)
+                .height(52.dp)
+                .padding(horizontal = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1868,7 +1946,7 @@ private fun SignaturePreview(signaturePath: String) {
             contentDescription = "Signature preview",
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(96.dp)
                 .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
                 .background(Color.White, RoundedCornerShape(10.dp)),
             contentScale = ContentScale.Fit
@@ -1888,12 +1966,13 @@ private fun SignatureDialog(
 
     AlertDialog(
         onDismissRequest = { },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(title) },
         text = {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
+                    .fillMaxWidth(0.96f)
+                    .height(170.dp)
                     .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
                     .background(Color.White, RoundedCornerShape(10.dp))
                     .onGloballyPositioned { canvasSize = it.size }

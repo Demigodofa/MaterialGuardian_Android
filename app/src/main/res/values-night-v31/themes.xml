@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.MaterialGuardian.Launch" parent="Theme.MaterialGuardian">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+    </style>
+</resources>

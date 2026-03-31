@@ -3,6 +3,10 @@
     <style name="Theme.MaterialGuardian" parent="android:Theme.Material.NoActionBar">
         <!-- We use Jetpack Compose for the UI, so these are just fallback values -->
         <item name="android:colorPrimary">#D0BCFF</item>
-        <item name="android:statusBarColor">#D0BCFF</item>
+    </style>
+
+    <style name="Theme.MaterialGuardian.Launch" parent="Theme.MaterialGuardian">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
 </resources>

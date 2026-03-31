@@ -127,28 +127,52 @@ class ExportService(
 
     private fun appendReceivingReport(document: PDDocument, job: JobItem, material: MaterialItem) {
         val customization = customizationRepository.load()
-        val page = PDPage(PDRectangle.LETTER)
-        document.addPage(page)
-        PDPageContentStream(document, page).use { stream ->
-            val margin = 36f
-            val width = PDRectangle.LETTER.width - margin * 2
-            var y = PDRectangle.LETTER.height - margin
+        val margin = 36f
+        val width = PDRectangle.LETTER.width - margin * 2
+        var stream = PDPageContentStream(document, PDPage(PDRectangle.LETTER).also(document::addPage))
+        var y = PDRectangle.LETTER.height - margin
+        var continuedPage = false
 
-            drawReportLogo(
-                document = document,
-                stream = stream,
-                logoPath = customization.companyLogoPath,
-                x = PDRectangle.LETTER.width - margin - 118f,
-                y = y - 40f,
-                maxWidth = 118f,
-                maxHeight = 40f
-            )
-            stream.setFont(PDType1Font.HELVETICA_BOLD, 16f)
-            drawText(stream, margin, y, "RECEIVING INSPECTION REPORT")
-            y -= 20f
+        fun drawPageHeader(continued: Boolean) {
+            if (!continued) {
+                drawReportLogo(
+                    document = document,
+                    stream = stream,
+                    logoPath = customization.companyLogoPath,
+                    x = PDRectangle.LETTER.width - margin - 118f,
+                    y = y - 40f,
+                    maxWidth = 118f,
+                    maxHeight = 40f
+                )
+                stream.setFont(PDType1Font.HELVETICA_BOLD, 16f)
+                drawText(stream, margin, y, "RECEIVING INSPECTION REPORT")
+                y -= 20f
+            } else {
+                stream.setFont(PDType1Font.HELVETICA_BOLD, 14f)
+                drawText(stream, margin, y, "RECEIVING INSPECTION REPORT (CONT.)")
+                y -= 18f
+            }
             stream.setFont(PDType1Font.HELVETICA, 11f)
             drawText(stream, margin, y, "Job#: ${job.jobNumber}")
             y -= 16f
+        }
+
+        fun startContinuationPage() {
+            stream.close()
+            stream = PDPageContentStream(document, PDPage(PDRectangle.LETTER).also(document::addPage))
+            y = PDRectangle.LETTER.height - margin
+            continuedPage = true
+            drawPageHeader(continued = true)
+        }
+
+        fun ensureSpace(requiredHeight: Float) {
+            if (y - requiredHeight < margin) {
+                startContinuationPage()
+            }
+        }
+
+        try {
+            drawPageHeader(continued = false)
 
             y = drawSectionTitle(stream, margin, y, "Material Details")
             y = drawLabelBoxRow(
@@ -189,7 +213,8 @@ class ExportService(
                 listOf(
                     Toggle("Imperial", material.dimensionUnit == "imperial"),
                     Toggle("Metric", material.dimensionUnit == "metric")
-                )
+                ),
+                toggleYOffset = 2f
             )
             y = drawLabelBoxRow(
                 stream,
@@ -271,8 +296,10 @@ class ExportService(
                 listOf(
                     LabelValue("Marking Actual", material.markings, 1f)
                 ),
-                boxHeight = 48f
+                boxHeight = 40f
             )
+            val inspectionSectionDrop = 8f
+
             y = drawToggleRow(
                 stream,
                 margin,
@@ -282,7 +309,8 @@ class ExportService(
                     Toggle("Yes", material.markingAcceptable && !material.markingAcceptableNa),
                     Toggle("No", !material.markingAcceptable && !material.markingAcceptableNa),
                     Toggle("N/A", material.markingAcceptableNa)
-                )
+                ),
+                labelYOffset = -inspectionSectionDrop
             )
             y = drawToggleRow(
                 stream,
@@ -293,7 +321,8 @@ class ExportService(
                     Toggle("Yes", material.mtrAcceptable && !material.mtrAcceptableNa),
                     Toggle("No", !material.mtrAcceptable && !material.mtrAcceptableNa),
                     Toggle("N/A", material.mtrAcceptableNa)
-                )
+                ),
+                labelYOffset = -inspectionSectionDrop
             )
             y = drawToggleRow(
                 stream,
@@ -303,15 +332,19 @@ class ExportService(
                 listOf(
                     Toggle("Accept", material.acceptanceStatus == "accept"),
                     Toggle("Reject", material.acceptanceStatus == "reject")
-                )
+                ),
+                labelYOffset = -inspectionSectionDrop
             )
 
-            y = drawSectionTitle(stream, margin, y, "Comments")
             val commentText = listOf(material.comments, material.description)
                 .filter { it.isNotBlank() }
                 .joinToString(" | ")
-            y = drawMultiLineBox(stream, margin, y, width, commentText, 48f)
+            y -= inspectionSectionDrop
+            ensureSpace(150f)
+            y = drawSectionTitle(stream, margin, y, "Comments") + 6f
+            y = drawMultiLineBox(stream, margin, y, width, commentText, 40f)
 
+            ensureSpace(128f)
             y = drawSectionTitle(stream, margin, y, "Quality Control")
             y = drawToggleRow(
                 stream,
@@ -323,7 +356,9 @@ class ExportService(
                     Toggle("Rejected", material.materialApproval == "rejected")
                 )
             )
+            ensureSpace(104f)
             y = drawSectionTitle(stream, margin, y, "Signatures")
+            y -= 2f
             y = drawSignatureRow(
                 document = document,
                 stream = stream,
@@ -334,6 +369,7 @@ class ExportService(
                 signaturePath = material.qcSignaturePath,
                 dateText = dateFormatter.format(Date(material.qcDate))
             )
+            ensureSpace(52f)
             drawSignatureRow(
                 document = document,
                 stream = stream,
@@ -344,6 +380,8 @@ class ExportService(
                 signaturePath = material.qcManagerSignaturePath,
                 dateText = dateFormatter.format(Date(material.qcManagerDate))
             )
+        } finally {
+            stream.close()
         }
     }
 
@@ -355,7 +393,7 @@ class ExportService(
     ): Float {
         stream.setFont(PDType1Font.HELVETICA_BOLD, 12f)
         drawText(stream, x, y, title)
-        return y - 14f
+        return y - 12f
     }
 
     private fun drawLabelBoxRow(
@@ -364,7 +402,7 @@ class ExportService(
         y: Float,
         totalWidth: Float,
         items: List<LabelValue>,
-        boxHeight: Float = 28f
+        boxHeight: Float = 24f
     ): Float {
         val spacing = 8f
         var cursor = x
@@ -374,11 +412,11 @@ class ExportService(
             drawText(stream, cursor, y, item.label)
             drawRect(stream, cursor, y - 2f - boxHeight, boxWidth, boxHeight)
             stream.setFont(PDType1Font.HELVETICA, 10f)
-            drawWrappedText(stream, cursor + 4f, y - 16f, boxWidth - 8f, item.value)
+            drawWrappedText(stream, cursor + 4f, y - 13f, boxWidth - 8f, item.value)
             stream.setFont(PDType1Font.HELVETICA, 9f)
             cursor += boxWidth + spacing
         }
-        return y - (boxHeight + 22f)
+        return y - (boxHeight + 18f)
     }
 
     private fun drawToggleRow(
@@ -386,22 +424,24 @@ class ExportService(
         x: Float,
         y: Float,
         label: String,
-        toggles: List<Toggle>
+        toggles: List<Toggle>,
+        labelYOffset: Float = 0f,
+        toggleYOffset: Float = 0f
     ): Float {
         stream.setFont(PDType1Font.HELVETICA, 10f)
-        drawText(stream, x, y, label)
+        drawText(stream, x, y + labelYOffset, label)
         var cursor = x + 200f
         toggles.forEach { toggle ->
-            drawRect(stream, cursor, y - 12f, 12f, 12f)
+            drawRect(stream, cursor, y + toggleYOffset - 12f, 12f, 12f)
             if (toggle.selected) {
                 stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
-                drawText(stream, cursor + 3f, y - 9f, "X")
+                drawText(stream, cursor + 3f, y + toggleYOffset - 9f, "X")
                 stream.setFont(PDType1Font.HELVETICA, 10f)
             }
-            drawText(stream, cursor + 18f, y, toggle.label)
+            drawText(stream, cursor + 18f, y + toggleYOffset, toggle.label)
             cursor += 90f
         }
-        return y - 22f
+        return y - 18f
     }
 
     private fun drawMultiLineBox(
@@ -415,7 +455,7 @@ class ExportService(
         drawRect(stream, x, y - height, width, height)
         stream.setFont(PDType1Font.HELVETICA, 10f)
         drawWrappedText(stream, x + 4f, y - 14f, width - 8f, text)
-        return y - (height + 16f)
+        return y - (height + 12f)
     }
 
     private fun drawSignatureRow(
@@ -431,17 +471,17 @@ class ExportService(
         stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
         drawText(stream, x, y, label)
 
-        val labelY = y - 16f
+        val labelY = y - 14f
         val printWidth = 160f
         val signWidth = 180f
         val dateWidth = 110f
         val gap = 12f
-        val boxHeight = 40f
+        val boxHeight = 30f
 
         drawText(stream, x, labelY, "Print")
         drawRect(stream, x, labelY - 2f - boxHeight, printWidth, boxHeight)
         stream.setFont(PDType1Font.HELVETICA, 10f)
-        drawWrappedText(stream, x + 4f, labelY - 16f, printWidth - 8f, printedName)
+        drawWrappedText(stream, x + 4f, labelY - 13f, printWidth - 8f, printedName)
 
         val signX = x + printWidth + gap
         stream.setFont(PDType1Font.HELVETICA_BOLD, 10f)
@@ -461,9 +501,9 @@ class ExportService(
         drawText(stream, dateX, labelY, "Date")
         drawRect(stream, dateX, labelY - 2f - boxHeight, dateWidth, boxHeight)
         stream.setFont(PDType1Font.HELVETICA, 10f)
-        drawWrappedText(stream, dateX + 4f, labelY - 16f, dateWidth - 8f, dateText)
+        drawWrappedText(stream, dateX + 4f, labelY - 13f, dateWidth - 8f, dateText)
 
-        return y - 66f
+        return y - 56f
     }
 
     private fun drawSignatureImage(
